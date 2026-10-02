@@ -29,7 +29,7 @@ async function save() {
 <template>
   <section class="usd-summary estimated-balance" aria-label="Estimated balance">
     <div class="estimate-content">
-      <div class="estimate-heading"><span class="eyebrow">ESTIMATED BALANCE IN {{ currency }}</span><button class="settings-button" aria-label="Estimated balance settings" title="Estimated balance settings" :aria-expanded="configuring" :aria-controls="id" :disabled="saving" @click="configure"><AppIcon name="settings" /></button></div>
+      <span class="eyebrow">ESTIMATED BALANCE IN {{ currency }}</span>
       <h2>{{ amount }} <span v-if="balance && !pending && !balance.complete && !balance.unavailable" class="pill">Partial total</span></h2>
       <p class="muted">{{ settings.dashboard?.include_savings ? 'Savings included.' : 'Savings excluded.' }} <button class="text-button" @click="$emit('reports')">Report & dashboard settings</button></p>
       <p class="muted">ARS uses the blue-dollar selling rate. UAH uses the official NBU rate. Separate debt records are not deducted.</p>
@@ -38,6 +38,7 @@ async function save() {
     </div>
     <div class="estimate-actions">
       <button class="secondary" :disabled="loading || saving" @click="$emit('refresh')">{{ loading ? 'Refreshing…' : 'Refresh rates' }}</button>
+      <button class="settings-button" aria-label="Estimated balance settings" title="Estimated balance settings" :aria-expanded="configuring" :aria-controls="id" :disabled="saving" @click="configure"><AppIcon name="settings" /></button>
     </div>
     <form v-if="configuring" :id="id" class="estimate-settings" @submit.prevent="save">
       <h3>Estimated balance settings</h3>
@@ -57,9 +58,9 @@ async function save() {
 
 <style scoped>
 .estimate-content { flex: 1; min-width: 0; }
-.estimate-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .estimate-content h2 { overflow-wrap: anywhere; }
-.estimate-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.estimate-actions { display: flex; align-items: center; align-self: flex-start; gap: 10px; }
+.estimate-actions .settings-button { width: 42px; height: 42px; flex-shrink: 0; }
 .estimate-settings { width: 100%; padding: 20px; border: 1px solid #dce6d2; border-radius: 9px; background: #fff; }
 .estimate-settings p { margin-top: 8px; }
 .estimate-settings fieldset { margin: 0; max-width: 320px; }
