@@ -1,0 +1,11 @@
+# Security and data protection
+
+[Back to README](../README.md)
+
+The application encrypts Telegram IDs, display names, account names/types/currencies, monetary amounts, transaction dates/categories/notes, closed months, debts, goals, savings rule amounts/dates, scheduled results, report preferences and bodies, account-group names/types, bot state, and bot reply receipts using authenticated Fernet encryption **before sending them to PostgreSQL**. Randomized ciphertext hides equal values. Telegram identities are located through a keyed HMAC index. Internal row IDs, relationships, row counts, login expiry metadata, update IDs, and record creation timestamps remain visible.
+
+A raw database query or database-only dump cannot reveal financial values without the encryption keys. This is **server-side encryption, not zero-knowledge encryption**: the running app decrypts records, and an operator who controls the server or `.env` can do so too. User authorization prevents ordinary users from accessing one another's data. An attacker who obtains both the database and server secrets can decrypt the data.
+
+Store encryption keys separately from database backups and preserve them securely. Losing the encryption keys loses access to the records. Do not regenerate `IDENTITY_HASH_KEY` for an existing database: it locates users. Startup verifies both key sets and fails if they don't match. `DATA_ENCRYPTION_KEYS` accepts comma-separated Fernet keys for staged rotation: new writes use the first key; keep older keys until old records have been re-encrypted.
+
+Startup runs a transactional, versioned migration that converts the original plaintext fields into ciphertext without changing balances. PostgreSQL serializes schema migration with an advisory lock. `.venv/bin/python scripts/backup_database.py` creates a Fernet-encrypted SQL backup under `backups/` without writing plaintext to disk. Decrypt with a retained encryption key before restoring with PostgreSQL tools; restore into a separate database first. Take and protect backups before upgrades. Old backups, PostgreSQL WAL, and old storage pages may retain earlier plaintext; encryption does not retroactively erase copies. Do not expose old unencrypted backups.
