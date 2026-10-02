@@ -2,7 +2,8 @@
 import os
 import time
 from datetime import datetime, timezone, timedelta
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, localcontext
+from functools import cache
 from concurrent.futures import ThreadPoolExecutor
 import httpx
 
@@ -94,14 +95,56 @@ def report_amount(value):
     return format(abs(amount) if amount == 0 else amount, '.2f')
 
 
-def message(result, *, include_rates=True):
+def balance_valuation(accounts, currency='USD', quote_fn=None):
+    """Value the total in the chosen unit without rounding the USD intermediate.
+
+    Keep USD values for the existing account ordering. Same-currency money needs
+    no external rate; a missing target rate must never produce a fake zero total.
+    """
+    quote_fn = cache(quote_fn or quote)
+    result = valuation(accounts, quote_fn)
+    if currency == 'USD':
+        return {**result, 'currency': currency, 'total': result['total_usd'], 'unavailable': False}
+    foreign = any(Decimal(a['balance']) != 0 and a['currency'] != currency for a in accounts)
+    target = quote_fn(currency) if foreign else None
+    quotes = {q['currency']: q for q in result['quotes']}
+    if target:
+        quotes[currency] = {'currency': currency, **target}
+    missing = [c for c in result['missing'] if c != currency]
+    unavailable = foreign and target is None
+    if unavailable:
+        missing.append(currency)
+    with localcontext() as context:
+        context.prec = 60
+        total = Decimal(0)
+        for account in accounts:
+            amount = Decimal(account['balance'])
+            if account['currency'] == currency:
+                total += amount
+            elif amount and target and account['currency'] in quotes:
+                total += amount * Decimal(quotes[account['currency']]['usd_rate']) / Decimal(target['usd_rate'])
+        precision = 8 if currency in ('BTC', 'ETH') else 6 if currency in ('USDT', 'TRX') else 2
+        total = total.quantize(Decimal(1).scaleb(-precision), rounding=ROUND_HALF_UP)
+    return {**result, 'currency': currency, 'total': None if unavailable else format(abs(total) if total == 0 else total, f'.{precision}f'),
+            'complete': not missing, 'unavailable': unavailable, 'missing': missing,
+            'quotes': list(quotes.values()), 'stale': any(q['stale'] for q in quotes.values())}
+
+
+def balance_heading(result):
+    currency = result.get('currency', 'USD')
+    if result.get('unavailable'):
+        return f'Estimated balance in {currency}: unavailable (exchange rate missing)'
     heading = 'Estimated balance' if result['complete'] else 'Partial balance (rates missing)'
-    lines = [f"{heading}: {result['total_usd']} USD", 'Account balances; separate debt records are not deducted.']
+    return f"{heading}: {result.get('total', result['total_usd'])} {currency}"
+
+
+def message(result, *, include_rates=True):
+    lines = [balance_heading(result), 'Account balances; separate debt records are not deducted.']
     lines += [f"{a['name']}: {report_amount(a['balance'])} {a['currency']}" for a in result['accounts']]
     if include_rates:
         lines += [f"{q['display_rate']} · {q['source']} · {q['as_of']}" for q in result['quotes'] if q['currency']!='USD']
     if result['missing']:
-        lines.append('Excluded, rate unavailable: '+', '.join(result['missing']))
+        lines.append(('Rates unavailable: ' if result.get('unavailable') else 'Excluded, rate unavailable: ')+', '.join(result['missing']))
     if result['stale']:
         lines.append('Warning: cached rates used because a provider is unavailable.')
     return '\n'.join(lines)
@@ -180,8 +223,7 @@ def grouped_by_usd(result):
 
 
 def current_balance_message(result, *, include_rates=True):
-    heading = 'Estimated balance' if result['complete'] else 'Partial balance (rates missing)'
-    lines = [f"{heading}: {result['total_usd']} USD", 'Accounts · highest USD balance first']
+    lines = [balance_heading(result), 'Accounts · highest USD balance first']
     groups = grouped_by_usd(result)
     for group in groups:
         lines.append(f"{group['name']}:")
@@ -190,6 +232,6 @@ def current_balance_message(result, *, include_rates=True):
     if include_rates:
         details = [f"{q['display_rate']} · {q['source']} · {q['as_of']}" for q in result['quotes'] if q['currency']!='USD']
         if details: lines += ['Exchange rates']+details
-    if result['missing']: lines.append('Rates unavailable: '+', '.join(result['missing'])+'. Unpriced accounts are listed last and excluded from the converted total where no rate is available.')
+    if result['missing']: lines.append('Rates unavailable: '+', '.join(result['missing'])+('. The converted total cannot be calculated.' if result.get('unavailable') else '. Unpriced accounts are listed last and excluded from the converted total where no rate is available.'))
     if result['stale']: lines.append('Cached exchange rates used; estimate may be out of date.')
     return '\n'.join(lines)

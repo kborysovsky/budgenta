@@ -4,12 +4,17 @@ from fastapi import Depends, HTTPException
 from backend.services import budget as service
 from backend.web.auth import get_user
 from backend.persistence.database import get_db
-from backend.core.schemas import SetEnabled, ReportPreferences, CurrentStatePreferences, AccountsPagePreferences
+from backend.core.schemas import SetEnabled, ReportPreferences, CurrentStatePreferences, AccountsPagePreferences, MainCurrencySettings
 from backend.services import rates
 from backend.services import scheduler
 from backend.services import reporting
 
 router = APIRouter(tags=["reports"])
+
+@router.get('/api/balance')
+def balance(dashboard: bool = False, user=Depends(get_user), db=Depends(get_db)):
+    return reporting.estimated_balance(db, user.id, dashboard=dashboard)
+
 
 @router.get('/api/balance/usd')
 def usd_balance(dashboard: bool = False, user=Depends(get_user), db=Depends(get_db)):
@@ -43,6 +48,11 @@ def save_preferences(data: ReportPreferences, user=Depends(get_user), db=Depends
     return reporting.save_preferences(db, user.id, data)
 
 
+@router.post('/api/preferences/main-currency')
+def save_main_currency(data: MainCurrencySettings, user=Depends(get_user), db=Depends(get_db)):
+    return reporting.save_main_currency(db, user.id, data.currency)
+
+
 @router.get('/api/dashboard/{month}')
 def dashboard(month: str, user=Depends(get_user), db=Depends(get_db)):
     return reporting.dashboard(db, user.id, month)
@@ -65,4 +75,3 @@ def save_current_state_preferences(data: CurrentStatePreferences, user=Depends(g
 @router.post('/api/preferences/accounts-page')
 def save_accounts_page_preferences(data: AccountsPagePreferences, user=Depends(get_user), db=Depends(get_db)):
     return reporting.save_section(db, user.id, 'accounts_page', data)
-

@@ -10,11 +10,12 @@ import MoneyMoveDialog from './features/transactions/MoneyMoveDialog.vue'
 import PlanningPanel from './features/planning/PlanningPanel.vue'
 import SavingsPanel from './features/savings/SavingsPanel.vue'
 import ReportsPanel from './features/reports/ReportsPanel.vue'
+import EstimatedBalance from './features/reports/EstimatedBalance.vue'
 import AccountsPage from './features/accounts/AccountsPage.vue'
 const today = new Date().toLocaleDateString('en-CA')
 const month = ref(today.slice(0, 7)), view = ref('Overview'), user = ref(null), config = ref({ currencies: {} })
 const groups = ref([]), dashboardReport = ref({ totals: [], transactions: [] })
-const accounts = ref([]), report = ref({ totals: [], transactions: [] }), savings = ref([]), rules = ref([]), monthlyReport = ref({ totals: [], categories: [] }), reportSettings = ref({}), debts = ref([]), goals = ref([]), usd = ref(null), usdLoading = ref(false)
+const accounts = ref([]), report = ref({ totals: [], transactions: [] }), savings = ref([]), rules = ref([]), monthlyReport = ref({ totals: [], categories: [] }), reportSettings = ref({}), debts = ref([]), goals = ref([]), estimatedBalance = ref(null), balanceLoading = ref(false)
 const error = ref(''), busy = ref(false), loading = ref(true), modal = ref(''), search = ref('')
 const form = ref({}), dialog = ref(null), moneyMove = ref(null)
 const categoryChoices = ref({ expense: [], income: [] })
@@ -24,7 +25,7 @@ const customCategory = computed(() => {
   return !!name && !entryCategories.value.some(c => c.toLocaleLowerCase() === name)
 })
 const loginChallenge = ref(null), approvedName = ref('')
-let loginTimer, usdRequest = 0, loginAttempt = 0
+let loginTimer, balanceRequest = 0, loginAttempt = 0
 const currencies = ['USD', 'EUR', 'ARS', 'UAH', 'USDT', 'TRX', 'BTC', 'ETH']
 const entryAccount = computed(() => accounts.value.find(a => a.id === Number(form.value.account_id)))
 const paymentAccounts = computed(() => accounts.value.filter(a => a.currency === debts.value.find(d => d.id === form.value.debt_id)?.currency))
@@ -58,14 +59,14 @@ async function api(path, body) {
 async function refresh() {
   const [a, r, s, d, g, sr, mr, rs, ag, dr, categories] = await Promise.all([api('/accounts'), api(`/months/${month.value}`), api('/savings'), api('/debts?include_archived=true'), api('/goals?include_archived=true'), api('/savings/rules?include_archived=true'), api(`/reports/${month.value}`), api('/preferences'), api('/account-groups?include_archived=true'), api(`/dashboard/${month.value}`), api('/categories')])
   accounts.value = a; report.value = r; savings.value = s; debts.value = d; goals.value = g; rules.value = sr; monthlyReport.value = mr; reportSettings.value = rs; groups.value = ag; dashboardReport.value = dr; categoryChoices.value = categories
-  loadUsd()
+  loadBalance()
 }
-async function loadUsd() {
-  const request = ++usdRequest
-  usdLoading.value = true
-  try { const result = await api('/balance/usd?dashboard=true'); if (request === usdRequest) usd.value = result }
-  catch { if (request === usdRequest) usd.value = { unavailable: true } }
-  finally { if (request === usdRequest) usdLoading.value = false }
+async function loadBalance() {
+  const request = ++balanceRequest
+  balanceLoading.value = true
+  try { const result = await api('/balance?dashboard=true'); if (request === balanceRequest) estimatedBalance.value = result }
+  catch { if (request === balanceRequest) estimatedBalance.value = { unavailable: true } }
+  finally { if (request === balanceRequest) balanceLoading.value = false }
 }
 async function startTelegramLogin() {
   await run(async () => {
@@ -96,7 +97,7 @@ async function run(task) {
   error.value = ''; busy.value = true
   try { await task() } catch (e) { error.value = e.message } finally { busy.value = false }
 }
-watch(user, value => { if (!value) { ++usdRequest; usd.value = null } else clearTimeout(loginTimer) })
+watch(user, value => { if (!value) { ++balanceRequest; estimatedBalance.value = null } else clearTimeout(loginTimer) })
 watch(month, value => { if (value && user.value) run(refresh) })
 watch(() => form.value.kind, () => { if (modal.value === 'entry') { form.value.category = ''; form.value.save_category = false }; if (modal.value === 'account') { form.value.currency = options.value[0]; form.value.extra_currencies = [] } })
 watch(() => form.value.currency, value => { if (modal.value === 'account') form.value.extra_currencies = (form.value.extra_currencies || []).filter(c => c !== value); if (modal.value === 'goal') form.value.savings_account_ids = (form.value.savings_account_ids || []).filter(id => accounts.value.some(a => a.id === id && a.currency === value)) })
@@ -156,7 +157,7 @@ onMounted(async () => {
       <p v-if="error && !modal" class="error" role="alert">{{ error }}</p>
       <div v-if="['Overview', 'Transactions', 'Reports'].includes(view)" class="toolbar"><div class="month-picker"><span><AppIcon name="calendar" /></span><input aria-label="Selected month" type="month" v-model="month" :max="today.slice(0, 7)" :disabled="busy" required></div><span class="muted"><AppIcon v-if="report.closed" name="check" />{{ report.closed ? 'Month closed' : 'Your monthly overview' }}</span></div>
       <template v-if="view === 'Overview'">
-        <section class="usd-summary"><div><span class="eyebrow">ESTIMATED BALANCE IN USD</span><h2>{{ usdLoading && !usd ? 'Fetching exchange rates…' : usd?.unavailable ? 'Rates temporarily unavailable' : money(usd?.total_usd || 0, 'USD') }} <span v-if="usd && !usd.complete && !usd.unavailable" class="pill">Partial total</span></h2><p class="muted">{{ reportSettings.dashboard?.include_savings ? 'Savings included.' : 'Savings excluded.' }} <button class="text-button" @click="view = 'Reports'">Report & dashboard settings</button></p><p class="muted">ARS uses the blue-dollar selling rate. Separate debt records are not deducted.</p><p v-if="usd?.missing?.length" class="rate-warning">Excluded: {{ usd.missing.join(', ') }} — rate unavailable.</p><p v-if="usd?.stale" class="rate-warning">Cached rates: a provider is unavailable.</p></div><button class="secondary" :disabled="usdLoading" @click="loadUsd">{{ usdLoading ? 'Refreshing…' : 'Refresh rates' }}</button><details v-if="reportSettings.dashboard?.include_rates !== false && usd?.quotes?.length"><summary>Exchange rates & sources</summary><p v-for="q in usd.quotes.filter(q => q.currency !== 'USD')" :key="q.currency">{{ q.display_rate }} · <a :href="q.url" target="_blank" rel="noopener noreferrer">{{ q.source }}</a> · {{ q.as_of }}{{ q.stale ? ' (cached)' : '' }}</p><small>Estimate only; quotes may reflect the last trading day.</small></details></section>
+        <EstimatedBalance :balance="estimatedBalance" :loading="balanceLoading" :settings="reportSettings" :currencies="currencies" :api="api" @refresh="loadBalance" @changed="run(refresh)" @reports="view = 'Reports'" />
         <section class="overview-grid"><div class="balance-panel"><span class="eyebrow">TOTAL BALANCES</span><div v-if="totals.length" class="balance-values"><div v-for="[currency, amount] in totals" :key="currency"><strong>{{ money(amount, currency).replace(` ${currency}`, '') }}</strong><span>{{ currency }}</span></div></div><strong v-else class="blank-balance">A fresh start.</strong><p>{{ dashboardGroups.length }} {{ dashboardGroups.length === 1 ? 'account' : 'accounts' }} <span>·</span> Each currency kept separate</p><AppIcon class="balance-decoration" name="star" /></div><div class="monthly-panel"><div class="section-top"><h3>This month</h3><span class="pill">{{ monthLabel }}</span></div><p v-if="!activeTotals(dashboardReport.totals).length" class="muted">Add your first transaction to start seeing your monthly picture.</p><div v-for="t in activeTotals(dashboardReport.totals)" :key="t.currency" class="monthly-currency"><span class="currency-label">{{ t.currency }}</span><div v-for="row in activityRows(t)" :key="row.key"><span>{{ row.label }}</span><b>{{ money(row.amount, t.currency) }}</b></div><div v-if="Number(t.surplus) !== 0" class="surplus"><span>Income less expenses</span><b>{{ money(t.surplus, t.currency) }}</b></div></div></div></section>
       </template>
       <AccountsPage v-if="view === 'Overview' || view === 'Accounts'" :groups="shownGroups" :all-groups="groups" :settings="reportSettings.accounts_page" :currencies="config.currencies" :api="api" @changed="run(refresh)" @add-account="open('account')" @transfer="open('transfer')" @exchange="open('exchange')" />

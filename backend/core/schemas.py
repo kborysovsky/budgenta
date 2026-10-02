@@ -150,7 +150,11 @@ class AccountsPagePreferences(BaseModel):
     show_savings: bool = True
     order: list[int] = Field(default_factory=list, max_length=10000)
 
+class MainCurrencySettings(BaseModel):
+    currency: Currency
+
 class ReportPreferences(BaseModel):
+    main_currency: Currency = 'USD'
     timezone: str = 'America/Argentina/Buenos_Aires'
     daily: ReportSchedule = Field(default_factory=lambda: ReportSchedule(include_categories=False))
     weekly: ReportSchedule = Field(default_factory=lambda: ReportSchedule(enabled=False))

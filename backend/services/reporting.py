@@ -41,6 +41,8 @@ def save_preferences(db, user_id, data):
     service.lock_user(db, user_id)
     value = data.model_dump()
     existing = get_preferences(db, user_id)
+    if 'main_currency' not in data.model_fields_set:
+        value['main_currency'] = existing['main_currency']
     for section in ('current_state', 'accounts_page'):
         if section not in data.model_fields_set and not getattr(data,section).model_fields_set:
             value[section] = existing[section]
@@ -68,6 +70,27 @@ def matches(account, config):
 
 def selected_accounts(db, user_id, config, *, include_archived=False):
     return [a for a in service.accounts(db, user_id, include_archived=include_archived) if matches(a, config)]
+
+
+def estimated_balance(db, user_id, *, dashboard=False, quote_fn=None):
+    quote_fn = cache(quote_fn or rates.quote)
+    preferences = get_preferences(db, user_id)
+    accounts = selected_accounts(db, user_id, preferences['dashboard']) if dashboard else service.accounts(db, user_id)
+    result = rates.balance_valuation(accounts, preferences['main_currency'], quote_fn=quote_fn)
+    if dashboard:
+        config = preferences['dashboard']
+        details = {q['currency']: q for q in result['quotes'] if q['currency'] != 'USD' and q['currency'] not in config['excluded_currencies']} if config['include_rates'] else {}
+        unavailable = []
+        # UAH is also a dashboard reference quote when no UAH wallet is held.
+        # Its availability must not change a total that did not need this rate.
+        if config['include_rates'] and 'UAH' not in config['excluded_currencies'] and 'UAH' not in details:
+            uah = quote_fn('UAH')
+            if uah:
+                details['UAH'] = {'currency': 'UAH', **uah}
+            else:
+                unavailable.append('UAH')
+        result.update(display_quotes=list(details.values()), unavailable_reference_rates=unavailable)
+    return result
 
 
 def dashboard(db, user_id, month):
@@ -118,7 +141,7 @@ def report_message(db, user_id, frequency, now=None, quote_fn=None):
         start = end.replace(day=1)
     config = prefs[frequency]
     report = period_report(db, user_id, start, end, config, quote_fn=quote_fn)
-    valuation = rates.valuation(report['accounts'], quote_fn=quote_fn)
+    valuation = rates.balance_valuation(report['accounts'], prefs['main_currency'], quote_fn=quote_fn)
     lines = [f"{frequency.title()} report · {now:%Y-%m-%d %H:%M} ({prefs['timezone']})", rates.message(valuation, include_rates=config['include_rates']), f"Activity · {start} to {end}"]
     lines += flow_lines(report['totals']) or ['No income, expenses, or transfers in this period.']
     if config['include_categories']:
@@ -155,13 +178,20 @@ def save_section(db, user_id, section, data):
     return save_preferences(db,user_id,ReportPreferences(**preferences))
 
 
+def save_main_currency(db, user_id, currency):
+    service.lock_user(db, user_id)
+    preferences = get_preferences(db, user_id)
+    preferences['main_currency'] = currency
+    return save_preferences(db, user_id, ReportPreferences(**preferences))
+
+
 def current_state(db, user_id, now=None, quote_fn=None):
     quote_fn = cache(quote_fn or rates.quote)
     prefs = get_preferences(db,user_id)
     config = prefs['current_state']
     now = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo(prefs['timezone']))
     accounts = selected_accounts(db,user_id,config)
-    result = rates.valuation(accounts,quote_fn=quote_fn)
+    result = rates.balance_valuation(accounts,prefs['main_currency'],quote_fn=quote_fn)
     lines = [f"Current state · {now:%Y-%m-%d %H:%M} ({prefs['timezone']})",
              rates.current_balance_message(result, include_rates=config['include_rates']),
              'Savings '+('included in balance.' if config['include_savings'] else 'excluded from balance.')]

@@ -9,7 +9,7 @@ const busy = ref(false), error = ref(''), saved = ref(''), preview = ref(''), se
 const tabs = { current_state: 'Current state', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', dashboard: 'Dashboard' }
 const timezones = [...new Set(['America/Argentina/Buenos_Aires', 'America/New_York', 'Europe/London', 'Europe/Kyiv', 'UTC', ...(Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : [])])].sort()
 const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-watch(() => props.settings, value => { draft.value = JSON.parse(JSON.stringify(value)) }, { immediate: true, deep: true })
+watch(() => props.settings, value => { draft.value = { main_currency: 'USD', ...JSON.parse(JSON.stringify(value)) } }, { immediate: true, deep: true })
 async function save() {
   busy.value = true; error.value = ''; saved.value = ''; preview.value = ''
   try { await props.api('/preferences', draft.value); saved.value = 'Settings saved.'; emit('changed') }
@@ -26,23 +26,25 @@ async function showPreview() {
     <form v-if="draft?.daily" class="report-settings" @submit.prevent="save">
       <h2>Reports & dashboard settings</h2><p class="muted">Choose what arrives in Telegram and what appears on your dashboard. Times follow your selected timezone, including daylight saving changes.</p>
       <fieldset :disabled="busy">
+        <label>Main currency<SearchSelect v-model="draft.main_currency" :options="currencies" label="Main currency" required /></label>
+        <p class="muted">Shared with the dashboard estimate and all Telegram report totals. Account balances keep their original currencies.</p>
         <label>Timezone<SearchSelect v-model="draft.timezone" :options="timezones" label="Report timezone" placeholder="Choose or type an IANA timezone" allow-custom required /></label>
         <div class="segmented report-tabs with-current-state"><button v-for="(label, frequency) in tabs" type="button" :key="frequency" :class="{ selected: selected === frequency }" @click="selected = frequency; preview = ''">{{ label }}</button></div>
         <template v-if="['daily', 'weekly', 'monthly'].includes(selected)">
           <label class="check-label"><input type="checkbox" v-model="draft[selected].enabled"> Enable {{ selected }} report</label>
           <div class="form-row"><label>Delivery time<input aria-label="Delivery time" type="time" required v-model="draft[selected].time"></label><label v-if="selected === 'weekly'">Day of week<SearchSelect v-model="draft.weekly.weekday" :options="weekdays.map((label, value) => ({ label, value }))" label="Day of week" required /></label><label v-if="selected === 'monthly'">Day of month<SearchSelect v-model="draft.monthly.month_day" :options="Array.from({ length: 31 }, (_, i) => i + 1)" label="Day of month" required /></label></div>
-          <p class="muted">Current balance in USD, plus {{ selected === 'daily' ? "yesterday's expenses" : selected === 'weekly' ? 'expenses from the previous seven days' : 'expenses from the previous calendar month' }}, plus income and transfers (including exchanges). Monthly days 29–31 use the last day in shorter months.</p>
+          <p class="muted">Current balance in {{ draft.main_currency || 'USD' }}, plus {{ selected === 'daily' ? "yesterday's expenses" : selected === 'weekly' ? 'expenses from the previous seven days' : 'expenses from the previous calendar month' }}, plus income and transfers (including exchanges). Monthly days 29–31 use the last day in shorter months.</p>
           <label class="check-label"><input type="checkbox" v-model="draft[selected].include_categories"> Include expenses by category</label>
         </template>
         <template v-if="selected === 'current_state'">
-          <h3>Telegram · Current state</h3><p class="muted">Choose what appears when you press Current state in the bot. Balances stay in their original currencies with two decimal places. Only the total is converted to USD. Accounts are sorted by their USD value, highest first. Accounts with unavailable rates appear last.</p>
+          <h3>Telegram · Current state</h3><p class="muted">Choose what appears when you press Current state in the bot. Balances stay in their original currencies with two decimal places. Only the total is converted to {{ draft.main_currency || 'USD' }}. Accounts are sorted by their USD value, highest first. Accounts with unavailable rates appear last.</p>
           <label class="check-label"><input type="checkbox" v-model="draft.current_state.include_debts">Show debts</label>
           <label class="check-label"><input type="checkbox" v-model="draft.current_state.include_goals">Show goals</label>
           <label class="check-label"><input type="checkbox" v-model="draft.current_state.include_monthly_summary">Show this month's income, expenses, and transfers</label>
           <label class="check-label"><input type="checkbox" v-model="draft.current_state.include_categories" :disabled="!draft.current_state.include_monthly_summary">Include expenses by category</label>
         </template>
         <label class="check-label"><input type="checkbox" v-model="draft[selected].include_rates">Show exchange-rate details</label>
-        <p class="muted">Conversion stays active for USD totals and account sorting when rate details are hidden. Missing or outdated rate warnings remain visible.</p>
+        <p class="muted">Conversion stays active for estimated totals and account sorting when rate details are hidden. Missing or outdated rate warnings remain visible.</p>
         <div class="account-choices"><h4>Excluded currencies</h4><p class="muted" v-if="selected === 'current_state'">Exclude currencies from Current state's total, account order, debts, goals, and monthly summary.</p><p class="muted" v-else-if="selected === 'dashboard'">Exclude currencies from dashboard balances, account cards, income, expenses, and recent activity.</p><p class="muted" v-else>Exclude currencies from this report's balances, USD total, income, expenses, and category breakdown.</p><p class="muted">Each tab has its own exclusions. Accounts and transactions remain available on their pages.</p><label v-for="currency in currencies" :key="currency" class="check-label"><input type="checkbox" :value="currency" v-model="draft[selected].excluded_currencies">Exclude {{ currency }}</label></div>
         <label class="check-label"><input type="checkbox" v-model="draft[selected].include_savings"> Include savings in {{ selected === 'dashboard' ? 'dashboard' : selected === 'current_state' ? 'Current state' : 'report' }}</label>
         <label class="check-label"><input type="checkbox" :checked="draft[selected].account_ids === null" @change="draft[selected].account_ids = $event.target.checked ? null : []"> All accounts (including future accounts)</label>
