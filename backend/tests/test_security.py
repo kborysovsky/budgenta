@@ -49,7 +49,7 @@ def test_headers_auth_and_body_limits(client, monkeypatch):
         assert "script-src 'self'" in response.headers['Content-Security-Policy']
         assert response.headers['Referrer-Policy'] == 'no-referrer'
     assert client.get('/api/accounts').status_code == 401
-    assert client.get('/api/accounts', headers={'Cookie': 'budget_session=forged'}).status_code == 401
+    assert client.get('/api/accounts', headers={'Cookie': 'budgenta_session=forged'}).status_code == 401
     assert client.post('/api/accounts', json={}).status_code == 403
     assert client.post('/api/accounts', headers={'Origin': 'https://attacker.invalid'}, json={}).status_code == 403
     response = client.post('/api/auth/telegram', headers={'Origin': 'http://localhost:8000'}, content=b'x' * (security.MAX_BODY_BYTES + 1))

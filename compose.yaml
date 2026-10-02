@@ -3,13 +3,13 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: pocket
-      POSTGRES_USER: pocket
+      POSTGRES_DB: budgenta
+      POSTGRES_USER: budgenta
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pocket -d pocket"]
+      test: ["CMD-SHELL", "pg_isready -U budgenta -d budgenta"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -25,7 +25,7 @@ services:
       - "127.0.0.1:8000:8000"
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+psycopg://pocket:${POSTGRES_PASSWORD}@db:5432/pocket
+      DATABASE_URL: postgresql+psycopg://budgenta:${POSTGRES_PASSWORD}@db:5432/budgenta
       FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
     depends_on:
       db:
@@ -41,7 +41,7 @@ services:
     profiles: ["telegram"]
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+psycopg://pocket:${POSTGRES_PASSWORD}@db:5432/pocket
+      DATABASE_URL: postgresql+psycopg://budgenta:${POSTGRES_PASSWORD}@db:5432/budgenta
     depends_on:
       db:
         condition: service_healthy

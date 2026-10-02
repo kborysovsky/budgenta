@@ -26,6 +26,21 @@ Startup applies transactional, versioned migrations. PostgreSQL serializes migra
 
 For a code rollback, retain the prior release/image and its configuration. A rollback across a database migration may also need a compatible database restore; do not assume older application code supports a newer schema.
 
+### Upgrade from the original database name
+
+Fresh installations create the `budgenta` database and role automatically. Existing PostgreSQL volumes retain their original database/role names even when Compose environment variables change. For an installation originally created with the `pocket` names, keep its database service running and execute this once **before rebuilding the application services**:
+
+```sh
+.venv/bin/python scripts/rename_database.py
+docker compose --profile telegram up --build -d
+```
+
+The script stops web/bot, creates an encrypted backup, and renames the database and role in one transaction. A temporary local administrator role allows renaming the original session user; it is removed afterwards. The script compares every encrypted table row before/after and refuses conflicting names or an old MD5 password. The supplied PostgreSQL 17 setup uses SCRAM passwords, which survive the rename. Database/role identities, ownership, encryption keys, and stored records are preserved. Repeating the script after a successful rename is a no-op. Do not remove the PostgreSQL volume.
+
+The script leaves web/bot stopped so you can start the matching release. Application migration 7 replaces the old encrypted key-check marker, including historical schema-version records. Old marker strings remain only in compatibility code and migration tests. The container OS user is now `budgenta`, and cookies use `budgenta_session` and `budgenta_login`; sign in again through Telegram after upgrading.
+
+If a native `.env` or external client has a PostgreSQL `DATABASE_URL` using the old role/database, change both to `budgenta` without changing its password. Compose supplies the new URL automatically. To back up a still-unmigrated installation manually, use `scripts/backup_database.py --user pocket --database pocket`. Rollback after application migration 7 requires the pre-upgrade backup and matching old code/configuration; old code cannot validate the new marker.
+
 ## Backups and recovery
 
 Install the backend dependencies on the host, then run:
@@ -34,7 +49,7 @@ Install the backend dependencies on the host, then run:
 .venv/bin/python scripts/backup_database.py
 ```
 
-The script reads root `.env`, calls `pg_dump` inside the Compose database container, and encrypts the dump in memory with the first Fernet key. It writes a mode-0600 `.sql.fernet` file under `backups/`; plaintext is not written to disk. It assumes the supplied Compose service/database/user names (`db` / `pocket` / `pocket`). Adapt it when using externally managed PostgreSQL.
+The script reads root `.env`, calls `pg_dump` inside the Compose database container, and encrypts the dump in memory with the first Fernet key. It writes a mode-0600 `.sql.fernet` file under `backups/`; plaintext is not written to disk. It assumes the supplied Compose service/database/user names (`db` / `budgenta` / `budgenta`). Adapt it when using externally managed PostgreSQL.
 
 Keep backup files off-host and keep the encryption keys and `IDENTITY_HASH_KEY` separately. No automatic backup schedule is configured. Set an operational schedule appropriate to how much data you can afford to lose, and periodically test recovery.
 
@@ -54,7 +69,7 @@ The website uses `frontend/public/budgenta-mark.svg`, with a matching favicon, A
 
 This updates the configured bot's public profile through the Telegram Bot API and sends no chat messages. It verifies that the token matches `TELEGRAM_BOT_USERNAME` first. The bot's existing @username remains unchanged; username changes are managed through BotFather and must also be reflected in `.env`. See [Telegram profile photo API](https://core.telegram.org/bots/api#setmyprofilephoto).
 
-Legacy internal database/user names, login cookie identifiers, and encryption markers retain their original values for compatibility with existing deployments. The Budgenta rebrand requires no database migration or new encryption keys.
+Database/role names, the container user, and browser cookie identifiers use `budgenta`. Existing installations must run the [database rename](#upgrade-from-the-original-database-name) before restarting with the new Compose settings. Schema migration 7 updates the encrypted key-check marker without changing financial records or encryption keys. Existing browser sessions and pending login challenges need a fresh Telegram sign-in.
 
 ### Worker operation
 

@@ -11,7 +11,7 @@ from backend.web.auth import set_session
 
 from backend.services.login import now, approve
 
-COOKIE = 'pocket_login'
+COOKIE = 'budgenta_login'
 
 
 def start(db, response):

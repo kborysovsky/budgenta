@@ -7,13 +7,13 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from backend.persistence.database import get_db
 from backend.persistence.models import User
 
-COOKIE = "budget_session"
+COOKIE = "budgenta_session"
 
 def serializer():
     secret = os.getenv("SESSION_SECRET", "")
     if len(secret) < 32 or secret.startswith("replace-with"):
         raise RuntimeError("Set SESSION_SECRET to a random value of at least 32 characters.")
-    return URLSafeTimedSerializer(secret, salt="budget-session-v1")
+    return URLSafeTimedSerializer(secret, salt="budgenta-session-v1")
 
 def verify_telegram(data, token, now=None):
     values = {k: str(v) for k, v in data.items() if k != "hash"}

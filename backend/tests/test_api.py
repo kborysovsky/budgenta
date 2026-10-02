@@ -160,7 +160,7 @@ def test_browser_telegram_approval_creates_session_without_dev_login(monkeypatch
     from backend.services import login
     from backend.services.users import find_or_create_user
     monkeypatch.setenv('TELEGRAM_BOT_TOKEN','test-only-token')
-    monkeypatch.setenv('TELEGRAM_BOT_USERNAME','test_pocket_bot')
+    monkeypatch.setenv('TELEGRAM_BOT_USERNAME','test_budgenta_bot')
     engine=create_engine('sqlite://',connect_args={'check_same_thread':False},poolclass=StaticPool)
     Base.metadata.create_all(engine)
     def db():

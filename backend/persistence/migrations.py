@@ -4,7 +4,10 @@ from backend.persistence.database import Base
 from backend.persistence import models   # register tables
 from backend.core.encryption import Encrypted, PREFIX, cipher, encrypt, decrypt, identity_key
 
-VERSION = 6
+VERSION = 7
+KEY_CHECK_PREFIX = 'budgenta-encryption-check:'
+# Compatibility only: deployed schemas through v6 used the original name.
+LEGACY_KEY_CHECK_PREFIX = 'pocket-encryption-check:'
 
 def migrate(engine):
     cipher()
@@ -15,10 +18,17 @@ def migrate(engine):
         conn.execute(text('CREATE TABLE IF NOT EXISTS schema_versions (version INTEGER PRIMARY KEY, key_check TEXT NOT NULL)'))
         current = conn.execute(text('SELECT version, key_check FROM schema_versions ORDER BY version DESC')).first()
         if current:
-            if decrypt(current.key_check) != 'pocket-encryption-check:'+identity_key(0):
+            expected = KEY_CHECK_PREFIX + identity_key(0)
+            accepted = {expected}
+            if current.version < 7:
+                accepted.add(LEGACY_KEY_CHECK_PREFIX + identity_key(0))
+            if decrypt(current.key_check) not in accepted:
                 raise RuntimeError('Invalid encryption key.')
             if current.version >= VERSION:
                 return
+            # Rewrite historical sentinels as well; all live metadata now uses
+            # Budgenta. Keep the original encryption and identity keys.
+            conn.execute(text('UPDATE schema_versions SET key_check=:check'), {'check': encrypt(expected)})
         Base.metadata.create_all(conn)
         upgrade_entry_columns(conn)
         upgrade_groups(conn)
@@ -26,7 +36,7 @@ def migrate(engine):
         if current and current.version >= 2:
             if current.version < 3:
                 backfill_links(conn)
-            conn.execute(text('INSERT INTO schema_versions (version, key_check) VALUES (:version, :check)'), {'version': VERSION, 'check': encrypt('pocket-encryption-check:'+identity_key(0))})
+            conn.execute(text('INSERT INTO schema_versions (version, key_check) VALUES (:version, :check)'), {'version': VERSION, 'check': encrypt(KEY_CHECK_PREFIX+identity_key(0))})
             return
         user_columns = {c['name'] for c in inspect(conn).get_columns('users')}
         if 'telegram_key' not in user_columns:
@@ -59,7 +69,7 @@ def migrate(engine):
                     conn.execute(text(f'UPDATE "{table.name}" SET {assignments} WHERE "{pk}" = :row_id'), {**values, 'row_id': row[pk]})
         backfill_links(conn)
         conn.execute(text('CREATE UNIQUE INDEX IF NOT EXISTS ix_users_telegram_key ON users (telegram_key)'))
-        conn.execute(text('INSERT INTO schema_versions (version, key_check) VALUES (:version, :check)'), {'version': VERSION, 'check': encrypt('pocket-encryption-check:'+identity_key(0))})
+        conn.execute(text('INSERT INTO schema_versions (version, key_check) VALUES (:version, :check)'), {'version': VERSION, 'check': encrypt(KEY_CHECK_PREFIX+identity_key(0))})
 
 
 def upgrade_entry_columns(conn):

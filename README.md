@@ -176,7 +176,7 @@ API routes are under `/api`; writes require the exact configured `Origin` and pr
 
 ## Deployment and maintenance
 
-Follow the [VPS deployment guide](docs/deployment.md) for the nginx configuration, HTTPS, firewall, trusted proxy settings, and launch checks.
+Follow the [VPS deployment guide](docs/deployment.md) for the nginx configuration, HTTPS, firewall, trusted proxy settings, and launch checks. Existing installations using the original database names must run the [one-time database rename](docs/operations.md#upgrade-from-the-original-database-name) before rebuilding. Fresh installs use `budgenta` for both the PostgreSQL database and role.
 
 The supplied Compose file is a single-host deployment. Before exposing it publicly, configure HTTPS at a reverse proxy, set `APP_ORIGIN` to the public HTTPS origin, and set `COOKIE_SECURE=true`. Keep PostgreSQL private. Run one Telegram worker; the worker uses a PostgreSQL advisory lock and does not silently remove an existing Telegram webhook.
 
