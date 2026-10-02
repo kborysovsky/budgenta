@@ -51,7 +51,7 @@ Install the backend dependencies on the host, then run:
 
 The script reads root `.env`, calls `pg_dump` inside the Compose database container, and encrypts the dump in memory with the first Fernet key. It writes a mode-0600 `.sql.fernet` file under `backups/`; plaintext is not written to disk. It assumes the supplied Compose service/database/user names (`db` / `budgenta` / `budgenta`). Adapt it when using externally managed PostgreSQL.
 
-Keep backup files off-host and keep the encryption keys and `IDENTITY_HASH_KEY` separately. No automatic backup schedule is configured. Set an operational schedule appropriate to how much data you can afford to lose, and periodically test recovery.
+Keep backup files off-host and keep the encryption keys and `IDENTITY_HASH_KEY` separately. Compose does not install backup timers automatically. Configure a schedule appropriate to how much data you can afford to lose, and periodically test recovery. The [weekly off-host backup procedure](#weekly-backups-from-a-vps-to-your-computer) below provides a verified local copy.
 
 Restore into a separate database first. Decrypt the outer Fernet backup using a retained key, then feed the SQL into `psql` for that database. Avoid plaintext temporary files or shell history containing keys. The financial fields inside the SQL are also encrypted and still require the original application keys. Start an isolated instance with those keys, verify balances and record counts, and only then switch the production application to the restored database. Do not run a second polling worker with the production bot token during recovery testing.
 
@@ -104,3 +104,53 @@ The application only supports Telegram sign-in. The former local-workspace butto
 Commit the source code and `.env.example`. `.env`, local credential/tooling directories, generated assets, database files, backups, and screenshots are ignored. If secrets were committed previously, adding an ignore rule does not remove them from Git history.
 
 Clone the repository on the VPS, create its private `.env`, configure the public HTTPS origin and secure cookies, and run `docker compose --profile telegram up --build -d`. Stop the old host's worker before starting the same bot on the VPS. Git does not carry your local PostgreSQL volume: use the encrypted backup/recovery procedure above if you want to retain existing records, along with the matching encryption and identity keys. A fresh database can use newly generated keys.
+
+## Weekly backups from a VPS to your computer
+
+`scripts/pull_vps_backup.py` requests a fresh encrypted dump from a VPS, checks its size and SHA-256 checksum, and authenticates/decrypts it in memory using the retained local `DATA_ENCRYPTION_KEYS`. It atomically saves only the encrypted file as `backups/budgenta-vps-<UTC timestamp>.sql.fernet`, with mode 0600. `.vps-backup-last-success.json` records the last successful verification. Local copies are retained until you remove them; the VPS's own retention policy is independent.
+
+Use a dedicated SSH key without an interactive passphrase for the scheduled job. Restrict that key on the VPS to this exact export operation by adding an authorized-keys entry (adjust the repository path):
+
+```text
+restrict,command="cd /opt/budgenta && /opt/budgenta/.venv/bin/python /opt/budgenta/scripts/export_backup.py" ssh-ed25519 <public-key> budgenta-backup-local
+```
+
+The forced command accepts only `backup`, creates the dump, and streams its encrypted contents. It cannot be used for an interactive shell or port forwarding. Keep your normal administration key separate. The VPS needs the host backup dependencies, Docker access, and its production `.env`. Verify and pin the VPS SSH host key before scheduling; the pull refuses unknown or changed host keys and does not use an SSH agent or other keys from SSH configuration.
+
+Example local command:
+
+```sh
+.venv/bin/python scripts/pull_vps_backup.py \
+  --host budgenta@YOUR_VPS \
+  --identity-file ~/.ssh/budgenta_backup_ed25519
+```
+
+Install a user systemd service with that command, an absolute repository working directory, `Type=oneshot`, `UMask=0077`, `TimeoutStartSec=6min`, `Restart=on-failure`, and `RestartSec=1h`. Set `StartLimitIntervalSec=0` in its `[Unit]` section so hourly retries can continue. The matching timer can run Sundays at 15:00 Buenos Aires time:
+
+```ini
+[Timer]
+OnCalendar=Sun *-*-* 15:00:00 America/Argentina/Buenos_Aires
+Persistent=true
+AccuracySec=1min
+Unit=budgenta-vps-backup.service
+
+[Install]
+WantedBy=timers.target
+```
+
+```sh
+systemctl --user daemon-reload
+systemctl --user enable --now budgenta-vps-backup.timer
+systemctl --user start budgenta-vps-backup.service
+systemctl --user list-timers budgenta-vps-backup.timer
+journalctl --user -u budgenta-vps-backup.service -n 20
+```
+
+The computer must be running and have network access. `Persistent=true` catches a missed scheduled run when the user timer next starts, normally at login; user lingering can also start it at boot. Failed exports retry hourly while the user manager is running. Keep the local `.env` encryption keys current when rotating production keys, and preserve the identity key for recovery. This task copies the production database; it does not start the local app or Telegram worker and does not synchronize the local database.
+
+To disable the job and any pending retries:
+
+```sh
+systemctl --user disable --now budgenta-vps-backup.timer
+systemctl --user stop budgenta-vps-backup.service
+```
