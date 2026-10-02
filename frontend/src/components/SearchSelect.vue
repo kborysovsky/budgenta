@@ -1,4 +1,5 @@
 <script setup>
+import AppIcon from './AppIcon.vue'
 import { computed, ref, useId, nextTick, watch } from 'vue'
 const props = defineProps({ modelValue: [String, Number], options: { type: Array, default: () => [] }, label: String, placeholder: { type: String, default: 'Choose an option' }, valueKey: { type: String, default: 'value' }, optionLabel: Function, allowCustom: Boolean, required: Boolean, disabled: Boolean, maxlength: Number })
 const emit = defineEmits(['update:modelValue', 'change'])
@@ -34,11 +35,11 @@ function keydown(event) {
 <template>
   <div class="search-select">
     <input ref="input" type="text" role="combobox" :aria-label="label" aria-autocomplete="list" aria-haspopup="listbox" :aria-expanded="opened" :aria-controls="`${id}-options`" :aria-activedescendant="opened && active >= 0 ? `${id}-${active}` : undefined" :aria-required="required" :placeholder="hint" :value="query" :required="required && !hasValue" :disabled="disabled" :maxlength="maxlength" autocomplete="off" @focus="open" @click="open" @input="changeQuery" @blur="blur" @keydown="keydown">
-    <span class="select-chevron" aria-hidden="true">⌄</span>
+    <span class="select-chevron" aria-hidden="true"><AppIcon name="chevron-down" /></span>
     <ul v-if="opened" :id="`${id}-options`" role="listbox" :aria-label="`${label} options`" class="select-options">
       <!-- Keep focus until click: iOS can still blur after a canceled pointerdown.
            Cancel mousedown instead, leaving touch scrolling uninterrupted. -->
-      <li v-for="(row, index) in filtered" :id="`${id}-${index}`" :key="row.value" role="option" :aria-selected="row.value === modelValue" :class="{ highlighted: index === active }" @mousedown.prevent @click.prevent="choose(row)">{{ row.label }}<span v-if="row.value === modelValue" aria-hidden="true">✓</span></li>
+      <li v-for="(row, index) in filtered" :id="`${id}-${index}`" :key="row.value" role="option" :aria-selected="row.value === modelValue" :class="{ highlighted: index === active }" @mousedown.prevent @click.prevent="choose(row)">{{ row.label }}<span v-if="row.value === modelValue" aria-hidden="true"><AppIcon name="check" /></span></li>
       <li v-if="!filtered.length" class="select-empty" role="presentation">{{ allowCustom ? 'Custom value — type your own or choose another.' : 'No matching options.' }}</li>
     </ul>
   </div>

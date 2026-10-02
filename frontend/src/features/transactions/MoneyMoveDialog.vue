@@ -1,4 +1,5 @@
 <script setup>
+import AppIcon from '../../components/AppIcon.vue'
 import { computed, nextTick, ref, watch } from 'vue'
 import SearchSelect from '../../components/SearchSelect.vue'
 import AmountInput from '../../components/AmountInput.vue'
@@ -50,7 +51,7 @@ defineExpose({ open })
 <template>
   <dialog ref="dialog" @cancel="busy && $event.preventDefault()">
     <form @submit.prevent="submit">
-      <div class="section-top"><h2>{{ mode === 'exchange' ? 'Exchange currencies' : 'Transfer between accounts' }}</h2><button type="button" class="close" aria-label="Close dialog" :disabled="busy" @click="close">×</button></div>
+      <div class="section-top"><h2>{{ mode === 'exchange' ? 'Exchange currencies' : 'Transfer between accounts' }}</h2><button type="button" class="close" aria-label="Close dialog" :disabled="busy" @click="close"><AppIcon name="close" /></button></div>
       <p class="muted">{{ mode === 'exchange' ? 'Record an exchange using your rate or the final amount received. Crypto, cash, cards, and savings can be exchanged with each other.' : 'Move the same currency between your accounts, including savings.' }}</p>
       <fieldset :disabled="busy" v-if="!review">
         <label>From<SearchSelect v-model="form.source_id" :options="accounts" value-key="id" :option-label="accountLabel" label="From" placeholder="Choose an account" required /></label>
@@ -82,7 +83,7 @@ defineExpose({ open })
         <p class="muted">Both balances update together. This does not count as income or an expense. Deleting either entry reverses the whole operation.</p>
       </div>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <div class="form-actions"><button v-if="review" type="button" class="secondary" :disabled="busy" @click="review = null; error = ''">← Edit</button><button v-else type="button" class="secondary" :disabled="busy" @click="close">Cancel</button><button class="primary" :disabled="busy || !source || !destination">{{ busy ? 'Please wait…' : review ? `Confirm ${mode}` : `Review ${mode}` }} →</button></div>
+      <div class="form-actions"><button v-if="review" type="button" class="secondary" :disabled="busy" @click="review = null; error = ''"><AppIcon name="arrow-left" /> Edit</button><button v-else type="button" class="secondary" :disabled="busy" @click="close">Cancel</button><button class="primary" :disabled="busy || !source || !destination">{{ busy ? 'Please wait…' : review ? `Confirm ${mode}` : `Review ${mode}` }} <AppIcon name="arrow-right" /></button></div>
     </form>
   </dialog>
 </template>

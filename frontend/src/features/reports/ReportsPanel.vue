@@ -1,4 +1,5 @@
 <script setup>
+import AppIcon from '../../components/AppIcon.vue'
 import SearchSelect from '../../components/SearchSelect.vue'
 import { activityRows, activeTotals, activityAmount } from '../../utils/activity.js'
 import { ref, watch } from 'vue'
@@ -63,7 +64,7 @@ async function showPreview() {
       <details v-if="settings.monthly?.include_rates && report.expense_valuation?.quotes?.some(q => q.currency !== 'USD')"><summary>Expense exchange rates & sources</summary><p v-for="q in report.expense_valuation.quotes.filter(q => q.currency !== 'USD')" :key="q.currency" class="muted">{{ q.display_rate }} · {{ q.source }} · {{ q.as_of }}{{ q.stale ? ' (cached)' : '' }}</p></details>
     </article>
     <p v-if="!activeTotals(report.totals).length" class="empty">No activity for these accounts this month.</p>
-    <div class="savings-banner"><div><h3>Close a completed month</h3><p>Closing prevents new backdated entries. Deleting a mistaken transaction still updates balances and this report.</p></div><button class="secondary" :disabled="report.closed || report.month >= new Date().toLocaleDateString('en-CA').slice(0, 7)" @click="$emit('close-month')">{{ report.closed ? 'Month closed ✓' : 'Close month' }}</button></div>
+    <div class="savings-banner"><div><h3>Close a completed month</h3><p>Closing prevents new backdated entries. Deleting a mistaken transaction still updates balances and this report.</p></div><button class="secondary" :disabled="report.closed || report.month >= new Date().toLocaleDateString('en-CA').slice(0, 7)" @click="$emit('close-month')">{{ report.closed ? 'Month closed' : 'Close month' }}<AppIcon v-if="report.closed" name="check" /></button></div>
   </section>
 </template>
 

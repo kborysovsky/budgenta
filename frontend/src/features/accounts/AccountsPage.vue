@@ -1,4 +1,5 @@
 <script setup>
+import AppIcon from '../../components/AppIcon.vue'
 import { ref, computed, watch } from 'vue'
 import AccountsPanel from './AccountsPanel.vue'
 const props = defineProps({ groups: Array, allGroups: Array, settings: Object, currencies: Object, api: Function })
@@ -32,14 +33,14 @@ async function save() {
 </script>
 <template>
   <section class="accounts-section">
-    <div class="section-top"><h2>Your accounts <span class="count">{{ activeCount }}</span></h2><div class="page-controls"><button class="secondary" aria-label="Configure accounts page" :aria-expanded="configuring" @click="configure">⚙ Page settings</button><button class="text-button" @click="$emit('add-account')">＋ Add account</button></div></div>
+    <div class="section-top"><h2>Your accounts <span class="count">{{ activeCount }}</span></h2><div class="page-controls"><button class="secondary" aria-label="Configure accounts page" :aria-expanded="configuring" @click="configure"><AppIcon name="settings" /> Page settings</button><button class="text-button" @click="$emit('add-account')"><AppIcon name="plus" /> Add account</button></div></div>
     <form v-if="configuring" class="accounts-page-settings" @submit.prevent="save"><h3>Account sections & order</h3><p class="muted">Hide sections you do not use. This changes the account list; balance totals and report filters have their own settings.</p><fieldset :disabled="busy">
       <label v-for="section in sections" :key="section.id" class="check-label"><input type="checkbox" v-model="draft[`show_${section.id}`]">Show {{ section.label }} section</label>
-      <div v-for="section in sections" :key="section.id" class="order-section"><h4>{{ section.label }}</h4><p v-if="!draftGroups.some(g => !g.archived && sectionFor(g) === section.id)" class="muted">No active accounts in this section.</p><div v-for="(group, index) in draftGroups.filter(g => !g.archived && sectionFor(g) === section.id)" :key="group.id" class="account-order-row"><span>{{ group.name }}</span><div><button type="button" class="secondary order-button" :aria-label="`Move ${group.name} up`" :disabled="index === 0" @click="move(group, -1)">↑</button><button type="button" class="secondary order-button" :aria-label="`Move ${group.name} down`" :disabled="index === draftGroups.filter(g => !g.archived && sectionFor(g) === section.id).length - 1" @click="move(group, 1)">↓</button></div></div></div>
+      <div v-for="section in sections" :key="section.id" class="order-section"><h4>{{ section.label }}</h4><p v-if="!draftGroups.some(g => !g.archived && sectionFor(g) === section.id)" class="muted">No active accounts in this section.</p><div v-for="(group, index) in draftGroups.filter(g => !g.archived && sectionFor(g) === section.id)" :key="group.id" class="account-order-row"><span>{{ group.name }}</span><div><button type="button" class="secondary order-button" :aria-label="`Move ${group.name} up`" :disabled="index === 0" @click="move(group, -1)"><AppIcon name="arrow-up" /></button><button type="button" class="secondary order-button" :aria-label="`Move ${group.name} down`" :disabled="index === draftGroups.filter(g => !g.archived && sectionFor(g) === section.id).length - 1" @click="move(group, 1)"><AppIcon name="arrow-down" /></button></div></div></div>
       <p class="muted">Accounts move within their section. Savings stays at the bottom. New accounts are added at the end.</p>
     </fieldset><p v-if="error" class="error" role="alert">{{ error }}</p><div class="form-actions"><button type="button" class="secondary" :disabled="busy" @click="configuring = false">Cancel</button><button class="primary" :disabled="busy">Save account layout</button></div></form>
     <p v-if="!visibleSections.length" class="empty">No accounts visible. Add an account or enable a section in Page settings.</p>
     <section v-for="section in visibleSections" :key="section.id" class="account-category" :aria-label="`${section.label} accounts`"><div class="section-top"><div><h3>{{ section.label }}</h3><p class="muted">{{ section.description }}</p></div></div><AccountsPanel :groups="ordered.filter(g => sectionFor(g) === section.id)" :all-groups="allGroups || groups" :currencies="currencies" :api="api" @changed="$emit('changed')" /></section>
-    <div class="page-controls"><button class="secondary" @click="$emit('transfer')">↔ Transfer between accounts</button><button class="secondary" @click="$emit('exchange')">⇄ Exchange currencies</button></div>
+    <div class="page-controls"><button class="secondary" @click="$emit('transfer')"><AppIcon name="transfer" /> Transfer between accounts</button><button class="secondary" @click="$emit('exchange')"><AppIcon name="exchange" /> Exchange currencies</button></div>
   </section>
 </template>

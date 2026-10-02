@@ -1,4 +1,5 @@
 <script setup>
+import AppIcon from '../../components/AppIcon.vue'
 import SearchSelect from '../../components/SearchSelect.vue'
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 const props = defineProps({ groups: Array, allGroups: Array, currencies: Object, api: Function, manage: { type: Boolean, default: true } })
@@ -6,7 +7,7 @@ const emit = defineEmits(['changed'])
 const menuId = ref(null), editForm = ref(null)
 const action = ref(''), selected = ref(null), busy = ref(false), error = ref(''), form = ref({}), showArchived = ref(false)
 const names = { cash: 'Cash', debit: 'Debit card', card: 'Credit card', paypal: 'PayPal', crypto: 'Crypto', savings: 'Savings' }
-const icons = { cash: '↗', debit: '▤', card: '▤', paypal: 'P', crypto: '◈', savings: '◇' }
+const icons = { cash: 'cash', debit: 'card', card: 'card', paypal: 'wallet', crypto: 'crypto', savings: 'savings' }
 const visible = computed(() => props.groups.filter(g => showArchived.value || !g.archived))
 const available = computed(() => (props.currencies[selected.value?.kind] || []).filter(c => !selected.value.balances.some(b => b.currency === c)))
 const targets = computed(() => (props.allGroups || props.groups).filter(g => !g.archived && g.id !== selected.value?.id && g.kind === selected.value?.kind))
@@ -51,10 +52,10 @@ async function submit() {
   <label v-if="manage && groups.some(g => g.archived)" class="check-label"><input type="checkbox" v-model="showArchived">Show archived accounts</label>
   <div class="account-grid grouped-accounts">
     <article v-for="group in visible" :key="group.id" class="account-card" :class="{ archived: group.archived }">
-      <div class="account-top"><span class="account-icon" :class="group.kind">{{ icons[group.kind] }}</span>
+      <div class="account-top"><span class="account-icon" :class="group.kind"><AppIcon :name="icons[group.kind]" /></span>
         <div v-if="manage" class="account-settings" :data-account-id="group.id">
           <button type="button" class="settings-button" :id="`account-settings-${group.id}`" :aria-label="`Settings for ${group.name}`" :title="`Settings for ${group.name}`" :aria-expanded="menuId === group.id" :aria-controls="`account-menu-${group.id}`" @click="menuId = menuId === group.id ? null : group.id">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9.5 3-.7 2.4-2.4 1L4 5.8 1.5 10l1.8 1.8v.4L1.5 14 4 18.2l2.4-.6 2.4 1 .7 2.4h5l.7-2.4 2.4-1 2.4.6 2.5-4.2-1.8-1.8v-.4l1.8-1.8L20 5.8l-2.4.6-2.4-1L14.5 3z"/><circle cx="12" cy="12" r="3.2"/></svg>
+            <AppIcon name="settings" />
           </button>
           <div v-if="menuId === group.id" :id="`account-menu-${group.id}`" class="account-menu" role="group" :aria-label="`Actions for ${group.name}`">
             <template v-if="!group.archived"><button type="button" :disabled="busy" @click="open('edit', group)">Edit account</button><button type="button" :disabled="busy" @click="open('balance', group)">Correct balance</button><button type="button" :disabled="busy || fullGroup(group).balances.length >= (currencies[group.kind]?.length || 0)" @click="open('currency', group)">Add currency</button><button type="button" :disabled="busy || !(allGroups || groups).some(g => !g.archived && g.id !== group.id && g.kind === group.kind)" @click="open('merge', group)">Merge accounts</button></template><button type="button" :disabled="busy" @click="archive(group)">{{ group.archived ? 'Restore account' : 'Archive account' }}</button>
