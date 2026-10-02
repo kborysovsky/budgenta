@@ -2,6 +2,8 @@
 
 **Your budget agent.**
 
+[Source code](https://github.com/kborysovsky/budgenta) · [MIT license](LICENSE) · [Security policy](SECURITY.md) · [VPS deployment guide](docs/deployment.md)
+
 Budgenta is a personal budgeting application with a Vue website and a Telegram companion. It supports multiple users, multiple currencies per account, income and expenses, debts, savings, goals, and scheduled reports. Financial records are encrypted before they reach the database.
 
 **Stack:** Python 3.12+, FastAPI, SQLAlchemy, PostgreSQL 17, Vue 3, and Vite. Docker Compose runs the website, database, and optional Telegram worker. The web API and bot call the same financial services.
@@ -170,9 +172,11 @@ npm --prefix frontend run build
 
 Tests use disposable SQLite databases and test encryption keys. They cover financial invariants, ownership, encrypted storage, migrations, Telegram idempotency, API behavior, schedules, and report filters. They do not send Telegram messages. The integration script performs public rate requests and checks bot credentials/webhook status without sending messages or printing credentials.
 
-Interactive API documentation is available at **`/docs`**, with the OpenAPI schema at **`/openapi.json`**. API routes remain under `/api`; writes require the exact configured `Origin` and protected endpoints require a session cookie. Routers are grouped by feature in `backend/web/routes/`.
+API routes are under `/api`; writes require the exact configured `Origin` and protected endpoints require a session cookie. Public interactive documentation and schema routes are disabled. Routers are grouped by feature in `backend/web/routes/`; developers can inspect `app.openapi()` in an isolated development environment.
 
 ## Deployment and maintenance
+
+Follow the [VPS deployment guide](docs/deployment.md) for the nginx configuration, HTTPS, firewall, trusted proxy settings, and launch checks.
 
 The supplied Compose file is a single-host deployment. Before exposing it publicly, configure HTTPS at a reverse proxy, set `APP_ORIGIN` to the public HTTPS origin, and set `COOKIE_SECURE=true`. Keep PostgreSQL private. Run one Telegram worker; the worker uses a PostgreSQL advisory lock and does not silently remove an existing Telegram webhook.
 
@@ -204,3 +208,7 @@ Budgenta does not yet support live bank connections, recurring expenses, or edit
 ## Working on the code
 
 Add financial behavior in `backend/services/` and shared input validation in `backend/core/schemas.py`, then expose it through a feature router or Telegram dialogue. Keep HTTP request/cookie handling in `web` and Telegram protocol handling in `bot`. Add regression tests under `backend/tests/` for changes to money, authentication, and scheduling. Place Vue components beside related features; use `App.vue` for application composition. Update the README or focused guides whenever setup, user-visible behavior, or operational requirements change.
+
+## Contributing and license
+
+Budgenta is open source under the [MIT license](LICENSE). Issues and pull requests are welcome at [kborysovsky/budgenta](https://github.com/kborysovsky/budgenta). Use synthetic data in bug reports and follow the [private reporting policy](SECURITY.md) for vulnerabilities. Run the backend tests, frontend tests, and frontend build before submitting changes. Never include `.env`, database files, backups, or private financial records.

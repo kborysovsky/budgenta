@@ -82,6 +82,8 @@ Never include `.env`, Telegram request URLs containing tokens, decrypted dumps, 
 
 ## Moving to Git and a VPS
 
+Follow the [VPS deployment guide](deployment.md) for DNS, HTTPS, firewall, reverse-proxy limits, and launch checks. The repository is [kborysovsky/budgenta](https://github.com/kborysovsky/budgenta) and uses the [MIT license](../LICENSE).
+
 The application only supports Telegram sign-in. The former local-workspace button, endpoint, and configuration switch have been removed; old local-workspace sessions are rejected. Existing local test records are retained separately in the database and are not transferred into a Telegram account.
 
 Commit the source code and `.env.example`. `.env`, local credential/tooling directories, generated assets, database files, backups, and screenshots are ignored. If secrets were committed previously, adding an ignore rule does not remove them from Git history.

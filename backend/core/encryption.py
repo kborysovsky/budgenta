@@ -27,7 +27,7 @@ def decrypt(value):
 
 def identity_key(telegram_id):
     key = os.getenv('IDENTITY_HASH_KEY', '')
-    if len(key) < 32:
+    if len(key) < 32 or key.startswith('replace-with'):
         raise RuntimeError('Set IDENTITY_HASH_KEY to a random secret of at least 32 characters.')
     return hmac.new(key.encode(), str(telegram_id).encode(), hashlib.sha256).hexdigest()
 

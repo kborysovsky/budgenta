@@ -143,7 +143,8 @@ def test_local_login_removed_and_old_local_sessions_rejected(monkeypatch, telegr
         with Session(engine) as session:
             session.add(User(id=1,telegram_id=-1,name='Former local workspace'));session.commit()
         with TestClient(app) as client:
-            assert '/api/auth/dev' not in client.get('/openapi.json').json()['paths']
+            assert '/api/auth/dev' not in app.openapi()['paths']
+            assert client.get('/openapi.json').status_code == 404
             assert client.post('/api/auth/dev',headers={'Origin':'http://localhost:8000'},json={}).status_code in (404,405)
             assert 'dev_login' not in client.get('/api/config').json()
             client.cookies.set(COOKIE,serializer().dumps(1))

@@ -15,3 +15,13 @@ artifacts/
 .codex/
 .agents/
 .aws/
+
+# Database sidecars and local key material
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sql
+*.sql.*
+*.pem
+*.key

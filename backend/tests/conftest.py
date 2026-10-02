@@ -15,6 +15,17 @@ import time
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def reset_request_limits():
+    from backend.web.security import limiter
+    from backend.bot.worker import bot_limiter
+    limiter.clear()
+    bot_limiter.clear()
+    yield
+    limiter.clear()
+    bot_limiter.clear()
+
+
 @pytest.fixture
 def telegram_login(monkeypatch):
     """Exercise the signed Telegram endpoint using a test-only bot token."""

@@ -1,0 +1,8 @@
+<template>
+  <a class="repository-link" href="https://github.com/kborysovsky/budgenta" target="_blank" rel="noopener noreferrer" aria-label="Budgenta source code on GitHub (opens in a new tab)">Open source on GitHub ↗</a>
+</template>
+
+<style scoped>
+.repository-link { color: inherit; text-underline-offset: 3px; white-space: nowrap; }
+.repository-link:hover { text-decoration-thickness: 2px; }
+</style>

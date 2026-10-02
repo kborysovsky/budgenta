@@ -15,3 +15,9 @@ backend/tests/
 .codex/
 .agents/
 .aws/
+
+*.db-*
+*.sqlite*
+*.sql*
+*.pem
+*.key

@@ -91,3 +91,6 @@
 .select-empty { padding: 10px; color: #71817b; font-size: 12px; }
 .category-amount { text-align: right; }
 .category-amount small { display: block; color: #71817b; margin-top: 3px; font-weight: 400; }
+
+footer { flex-wrap: wrap; gap: 12px; }
+.login-repository { margin-top: 24px; font-size: 12px; }

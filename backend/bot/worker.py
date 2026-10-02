@@ -13,6 +13,10 @@ from backend.services.users import find_or_create_user
 from backend.bot import dialogue
 from backend.services import login as login_flow
 from backend.services import scheduler
+from backend.core.config import validate_config
+from backend.core.rate_limit import RateLimiter
+
+bot_limiter = RateLimiter()
 
 
 def process_update(update):
@@ -26,7 +30,11 @@ def process_update(update):
             callback=update.get('callback_query')
             message=callback.get('message',{}) if callback else update.get('message',{})
             sender=callback.get('from',{}) if callback else message.get('from',{})
-            if message.get('chat',{}).get('type')!='private' or not isinstance(sender.get('id'),int) or sender['id']<=0:
+            if message.get('chat',{}).get('type')!='private' or not isinstance(sender.get('id'),int) or sender['id']<=0 or message.get('chat',{}).get('id') != sender['id']:
+                payload={'skip':True}
+            elif not bot_limiter.allow(sender['id'], 30):
+                # Silently drop excess messages: replying to every flood would
+                # also consume Telegram's outgoing-message quota.
                 payload={'skip':True}
             else:
                 user=find_or_create_user(db,sender['id'],sender.get('first_name','You'))
@@ -56,8 +64,13 @@ class TelegramError(RuntimeError):
         super().__init__('Telegram request rejected.')
 
 async def telegram(client, method, payload):
-    response=await client.post(method,json=payload)
-    data=response.json()
+    try:
+        response=await client.post(method,json=payload)
+        data=response.json()
+    except (httpx.HTTPError, ValueError):
+        # Startup requests run outside the polling loop too. Do not expose
+        # token-bearing URLs through chained exceptions or traceback messages.
+        raise TelegramError(503) from None
     if not data.get('ok'):
         raise TelegramError(data.get('error_code',response.status_code))
     return data['result']
@@ -97,6 +110,7 @@ async def deliver_notifications(client):
             db.commit()
 
 async def main():
+    validate_config()
     token=os.getenv('TELEGRAM_BOT_TOKEN','')
     if not token: raise SystemExit('Configure TELEGRAM_BOT_TOKEN first.')
     migrate(engine)
@@ -129,4 +143,3 @@ async def main():
                 print('Bot request failed; will retry without repeating budget changes.',flush=True)
                 await asyncio.sleep(5)
     guard.close()
-

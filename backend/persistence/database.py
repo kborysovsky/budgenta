@@ -6,7 +6,7 @@ class Base(DeclarativeBase):
     pass
 
 url = os.getenv("DATABASE_URL", "sqlite:///./budget.db")
-engine = create_engine(url, connect_args={"check_same_thread": False} if url.startswith("sqlite") else {}, pool_pre_ping=True)
+engine = create_engine(url, connect_args={"check_same_thread": False} if url.startswith("sqlite") else {}, pool_pre_ping=True, hide_parameters=True)
 if url.startswith("sqlite"):
     @event.listens_for(engine, "connect")
     def sqlite_foreign_keys(connection, _):

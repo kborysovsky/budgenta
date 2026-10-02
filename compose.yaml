@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: pocket
       POSTGRES_USER: pocket
@@ -17,11 +18,15 @@ services:
       context: .
       target: web
     restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 256
     ports:
       - "127.0.0.1:8000:8000"
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://pocket:${POSTGRES_PASSWORD}@db:5432/pocket
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
     depends_on:
       db:
         condition: service_healthy
@@ -30,6 +35,9 @@ services:
       context: .
       target: bot
     restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 256
     profiles: ["telegram"]
     env_file: .env
     environment:
