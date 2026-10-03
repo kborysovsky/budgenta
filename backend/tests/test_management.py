@@ -209,7 +209,7 @@ def test_bot_current_state_only_and_scheduled_report_controls_stay_on_web(db):
         response=bot_dialogue.handle(db,user,text)
         assert response['reply_markup']['keyboard']==bot_dialogue.MENU
         assert text not in response['text']
-    assert bot_dialogue.MENU == [['↑ Expense','↓ Income'],['↔ Transfer','⇄ Exchange'],['Current state'],['Open website']]
+    assert bot_dialogue.MENU == [['↑ Expense','↓ Income'],['↔ Transfer','⇄ Exchange'],['Current state'],['Open website'],['Language']]
     assert service.balance(db,cash)==before
 
 

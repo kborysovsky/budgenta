@@ -100,3 +100,9 @@ footer { flex-wrap: wrap; gap: 12px; }
 .select-chevron .app-icon { display: block; width: 16px; height: 16px; }
 .select-options [role="option"] > span { flex-shrink: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* Language choice remains accessible on login, desktop, and small screens. */
+.header-tools { display: flex; align-items: center; justify-content: flex-end; gap: 18px; }
+.login-language { position: absolute; top: 18px; right: 24px; z-index: 2; }
+.login-page { position: relative; }
+@media (max-width: 700px) { .header-tools .private { display: none; } .login-language { top: 12px; right: 16px; } .login-card { padding-top: 72px; } }

@@ -10,13 +10,18 @@ Budgenta is a personal budgeting application with a Vue website and a Telegram c
 
 ## Features
 
+- **Languages:** manually choose English, Russian, Ukrainian, or Spanish using the top-right language selector or the bot’s **Language** button (`/language`). The encrypted preference is shared with Telegram reports.
+
 - **Accounts:** cash, debit cards, credit cards, PayPal, crypto, and savings; multiple currencies per account, balance corrections, merging, archiving, and custom display order.
 - **Currencies:** USD, EUR, ARS, UAH, USDT, TRX, BTC, and ETH, according to account type. Cash and cards share the same fiat currencies.
 - **Transactions:** income, expenses, custom income/expense categories with an optional permanent save (including Outside Food presets), transfers between matching currencies, and exchanges across currencies/account types at a custom rate or a final received amount (with the rate calculated automatically). Deleting a mistaken transaction reverses related transfers, exchanges, or debt payments atomically.
+- **Category management:** remove default or custom income/expense categories from your suggestions without changing transaction history; restore defaults at any time under **Transactions → Manage categories**.
 - **Planning:** debt repayments from a selected account, goals linked to savings balances, manual savings deposits/withdrawals, and recurring fixed or remaining-balance savings transfers.
 - **Main currency:** choose the dashboard and Telegram estimated-total currency from the dashboard gear button, including EUR and UAH. UAH reference rates update automatically and appear in the dashboard rate list.
 - **Reports:** incoming/outgoing transfer statistics (including exchanges), hidden zero figures, category percentages of total spending across currencies (converted to USD) and independent daily, weekly, monthly, Current state, and dashboard settings for accounts, currencies, savings, and exchange-rate visibility. Telegram Current state sorts accounts by USD value while displaying their original currencies.
 - **Telegram:** account registration and browser login approval, guided income/expense entry, transfers and custom-rate exchanges, Current state, and scheduled reports. Management stays on the website.
+
+Translations are bundled with the application; no automatic language detection or external translation service is used. See [localization notes](locales/README.md) for adding languages.
 
 See the [user guide](docs/user-guide.md) for financial rules and controls, and [exchange-rate documentation](docs/exchange-rates.md) for providers, caching, and partial totals.
 
@@ -57,6 +62,7 @@ See the [user guide](docs/user-guide.md) for financial rules and controls, and [
 │   ├── public/                 # Static public assets
 │   ├── package.json
 │   └── vite.config.js
+├── locales/                    # Shared Russian, Ukrainian, and Spanish translations
 ├── docs/                       # User guide, operations, security, exchange rates
 ├── scripts/                    # Encrypted backups and read-only integration checks
 ├── .env.example                # Configuration template; no real credentials

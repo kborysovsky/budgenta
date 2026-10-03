@@ -1,4 +1,5 @@
 """Decimal-only calculations shared by financial reports."""
+from backend.core.i18n import tr
 from decimal import Decimal, ROUND_HALF_UP
 
 
@@ -43,7 +44,7 @@ def flow_lines(totals):
             if amount == 0: continue
             rounded = amount.quantize(Decimal('.01'), rounding=ROUND_HALF_UP)
             display = '<0.01' if rounded == 0 and amount > 0 else format(rounded, '.2f')
-            parts.append(f'{label} {display}')
+            parts.append(f'{tr(label)} {display}')
         if parts:
             lines.append(f"{total['currency']}: " + ' · '.join(parts))
     return lines

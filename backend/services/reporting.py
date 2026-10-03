@@ -1,4 +1,5 @@
 """Encrypted report preferences and shared filtered reporting for web and bot."""
+from backend.core.i18n import tr, localized
 import json
 from functools import cache
 from collections import defaultdict
@@ -41,6 +42,9 @@ def save_preferences(db, user_id, data):
     service.lock_user(db, user_id)
     value = data.model_dump()
     existing = get_preferences(db, user_id)
+    # These have dedicated endpoints. A stale reports form must not undo them.
+    for field in ('language', 'hidden_categories'):
+        value[field] = existing[field]
     if 'main_currency' not in data.model_fields_set:
         value['main_currency'] = existing['main_currency']
     for section in ('current_state', 'accounts_page'):
@@ -129,6 +133,7 @@ def category_lines(report):
     return expense_breakdown.lines(report)
 
 
+@localized
 def report_message(db, user_id, frequency, now=None, quote_fn=None):
     quote_fn = cache(quote_fn or rates.quote)
     prefs = get_preferences(db, user_id)
@@ -142,11 +147,11 @@ def report_message(db, user_id, frequency, now=None, quote_fn=None):
     config = prefs[frequency]
     report = period_report(db, user_id, start, end, config, quote_fn=quote_fn)
     valuation = rates.balance_valuation(report['accounts'], prefs['main_currency'], quote_fn=quote_fn)
-    lines = [f"{frequency.title()} report · {now:%Y-%m-%d %H:%M} ({prefs['timezone']})", rates.message(valuation, include_rates=config['include_rates']), f"Activity · {start} to {end}"]
-    lines += flow_lines(report['totals']) or ['No income, expenses, or transfers in this period.']
+    lines = [f"{tr(frequency.title() + ' report')} · {now:%Y-%m-%d %H:%M} ({prefs['timezone']})", rates.message(valuation, include_rates=config['include_rates']), tr('Activity · {start} to {end}', start=start, end=end)]
+    lines += flow_lines(report['totals']) or [tr('No income, expenses, or transfers in this period.')]
     if config['include_categories']:
         lines += category_lines(report)
-    lines.append('Savings '+('included.' if config['include_savings'] else 'excluded.'))
+    lines.append(tr('Savings included.' if config['include_savings'] else 'Savings excluded.'))
     return '\n'.join(lines)
 
 
@@ -185,6 +190,18 @@ def save_main_currency(db, user_id, currency):
     return save_preferences(db, user_id, ReportPreferences(**preferences))
 
 
+def save_language(db, user_id, language):
+    from backend.core.schemas import LanguageSettings
+    language = LanguageSettings(language=language).language
+    service.lock_user(db, user_id)
+    preferences = get_preferences(db, user_id)
+    preferences['language'] = language
+    store_preferences(db, user_id, preferences)
+    db.commit()
+    return preferences
+
+
+@localized
 def current_state(db, user_id, now=None, quote_fn=None):
     quote_fn = cache(quote_fn or rates.quote)
     prefs = get_preferences(db,user_id)
@@ -192,17 +209,17 @@ def current_state(db, user_id, now=None, quote_fn=None):
     now = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo(prefs['timezone']))
     accounts = selected_accounts(db,user_id,config)
     result = rates.balance_valuation(accounts,prefs['main_currency'],quote_fn=quote_fn)
-    lines = [f"Current state · {now:%Y-%m-%d %H:%M} ({prefs['timezone']})",
+    lines = [f"{tr('Current state')} · {now:%Y-%m-%d %H:%M} ({prefs['timezone']})",
              rates.current_balance_message(result, include_rates=config['include_rates']),
-             'Savings '+('included in balance.' if config['include_savings'] else 'excluded from balance.')]
+             tr('Savings included in balance.' if config['include_savings'] else 'Savings excluded from balance.')]
     if config['include_monthly_summary']:
         monthly = period_report(db,user_id,now.date().replace(day=1),now.date(),config,quote_fn=quote_fn)
-        lines += ['This month so far'] + (flow_lines(monthly['totals']) or ['No income, expenses, or transfers recorded this month.'])
+        lines += [tr('This month so far')] + (flow_lines(monthly['totals']) or [tr('No income, expenses, or transfers recorded this month.')])
         if config['include_categories']: lines += category_lines(monthly)
     if config['include_debts']:
         debts = [d for d in service.debts(db,user_id) if d['currency'] not in config['excluded_currencies']]
-        lines += ['Debts (separate from account balance)'] + ([f"{d['name']}: {rates.report_amount(d['remaining'])} {d['currency']} remaining" for d in debts if Decimal(d['remaining'])>0] or ['No outstanding debts.'])
+        lines += [tr('Debts (separate from account balance)')] + ([tr('{name}: {amount} {currency} remaining', name=d['name'], amount=rates.report_amount(d['remaining']), currency=d['currency']) for d in debts if Decimal(d['remaining'])>0] or [tr('No outstanding debts.')])
     if config['include_goals']:
         goals = [g for g in service.goals(db,user_id) if g['currency'] not in config['excluded_currencies']]
-        lines += ['Goals'] + ([f"{g['name']}: {rates.report_amount(g['saved'])} / {rates.report_amount(g['target'])} {g['currency']}" for g in goals] or ['No active goals.'])
+        lines += [tr('Goals')] + ([f"{g['name']}: {rates.report_amount(g['saved'])} / {rates.report_amount(g['target'])} {g['currency']}" for g in goals] or [tr('No active goals.')])
     return '\n'.join(lines)

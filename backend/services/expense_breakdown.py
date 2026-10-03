@@ -1,4 +1,5 @@
 """Category shares of all filtered expenses, valued in a common currency."""
+from backend.core.i18n import tr, category_label
 from collections import defaultdict
 from decimal import Decimal, localcontext
 from backend.core.money import expense_percentage
@@ -35,16 +36,16 @@ def summarize(amounts, quote_fn=None):
 def lines(report):
     if not report.get('category_totals'):
         return []
-    result = ['Expenses by category (% of total expenses across currencies)']
+    result = [tr('Expenses by category (% of total expenses across currencies)')]
     for row in report['category_totals']:
         amounts = ' + '.join(f"{rates.report_amount(a['amount'])} {a['currency']}" for a in row['amounts'])
-        share = f"{row['percentage']}%" if row['percentage'] is not None else 'percentage unavailable'
-        result.append(f"{row['category']}: {amounts} · {share}")
+        share = f"{row['percentage']}%" if row['percentage'] is not None else tr('percentage unavailable')
+        result.append(f"{category_label(row['category'], 'expense')}: {amounts} · {share}")
     valuation = report['expense_valuation']
     if not valuation['complete']:
-        result.append('Percentages unavailable: missing expense exchange rates for ' + ', '.join(valuation['missing']) + '.')
+        result.append(tr('Percentages unavailable: missing expense exchange rates for ') + ', '.join(valuation['missing']) + '.')
     else:
-        result.append('Shares use total expenses converted to USD at current rates.')
+        result.append(tr('Shares use total expenses converted to USD at current rates.'))
     if valuation['stale']:
-        result.append('Expense percentages use cached exchange rates; estimates may be out of date.')
+        result.append(tr('Expense percentages use cached exchange rates; estimates may be out of date.'))
     return result

@@ -7,12 +7,21 @@ from backend.services import categories
 from backend.web.auth import get_user
 from backend.persistence.database import get_db
 from backend.core.schemas import NewEntry, Transfer, Exchange, CloseMonth
+from backend.core.schemas import CategoryChange
 
 router = APIRouter(tags=["transactions"])
 
 @router.get('/api/categories')
 def category_choices(user=Depends(get_user), db=Depends(get_db)):
     return categories.choices(db, user.id)
+
+@router.get('/api/categories/manage')
+def manage_categories(user=Depends(get_user), db=Depends(get_db)):
+    return categories.manage(db, user.id)
+
+@router.post('/api/categories/change')
+def change_category(data: CategoryChange, user=Depends(get_user), db=Depends(get_db)):
+    return categories.change(db, user.id, data)
 
 @router.post("/api/entries", status_code=201)
 def add_entry(data: NewEntry, user=Depends(get_user), db=Depends(get_db)):

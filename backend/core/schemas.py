@@ -153,7 +153,23 @@ class AccountsPagePreferences(BaseModel):
 class MainCurrencySettings(BaseModel):
     currency: Currency
 
+Language = Literal['en', 'ru', 'uk', 'es']
+
+class LanguageSettings(BaseModel):
+    language: Language
+
+class CategoryChange(BaseModel):
+    kind: Literal['expense', 'income']
+    name: str = Field(min_length=1, max_length=60)
+    removed: bool = True
+
+class HiddenCategories(BaseModel):
+    expense: list[str] = Field(default_factory=list, max_length=1000)
+    income: list[str] = Field(default_factory=list, max_length=1000)
+
 class ReportPreferences(BaseModel):
+    language: Language = 'en'
+    hidden_categories: HiddenCategories = Field(default_factory=HiddenCategories)
     main_currency: Currency = 'USD'
     timezone: str = 'America/Argentina/Buenos_Aires'
     daily: ReportSchedule = Field(default_factory=lambda: ReportSchedule(include_categories=False))

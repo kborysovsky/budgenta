@@ -13,10 +13,10 @@ watch([() => props.accountId, () => props.balance, () => props.limit, () => prop
 </script>
 <template>
   <div class="amount-field">
-    <label :for="id">{{ label }}</label>
+    <label :for="id">{{ $t(label) }}</label>
     <div class="amount-input-row">
-      <input :id="id" :aria-label="label" type="number" min="0.00000001" step="any" :max="limit" :value="modelValue" :required="required" :disabled="disabled" placeholder="0.00" @input="input">
-      <button v-if="showAll" type="button" class="secondary" :disabled="disabled || !available" :title="available ? hint : 'No positive balance available in this account and currency'" @click="fillAll">All</button>
+      <input :id="id" :aria-label="$t(label)" type="number" min="0.00000001" step="any" :max="limit" :value="modelValue" :required="required" :disabled="disabled" placeholder="0.00" @input="input">
+      <button v-if="showAll" type="button" class="secondary" :disabled="disabled || !available" :title="available ? $t(hint) : $t(&quot;No positive balance available in this account and currency&quot;)" @click="fillAll">{{ $t("All") }}</button>
     </div>
   </div>
 </template>

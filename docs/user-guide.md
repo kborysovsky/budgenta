@@ -15,6 +15,20 @@ Login requests expire after five minutes, are bound to an HttpOnly browser cooki
 
 Telegram sign-in is required in every environment, including localhost. For a public deployment, set `COOKIE_SECURE=true` and `APP_ORIGIN=https://your-domain.example` (no trailing slash), and run behind an HTTPS reverse proxy. Writes require the exact configured Origin, including API clients.
 
+## Language
+
+Use the language selector at the **top right** of the website to choose **English**, **Русский**, **Українська**, or **Español**. Selection is manual; a new account starts in English. Before signing in, the browser remembers your login-page choice locally. After signing in, the account's saved language takes precedence and is shared by the website, Telegram replies, and newly generated scheduled reports.
+
+In Telegram, press **Language** or send `/language`, then choose a language. Opening this menu discards any unfinished transaction; it does not change saved transactions. After changing the language on the website, the bot responds in that language on the next interaction. Buttons from an older translated keyboard and English slash commands remain usable. Reload an already-open website after changing the language in Telegram.
+
+Built-in categories and interface labels are translated. Account names, custom categories, notes, currency codes, and stored financial values are preserved. Amounts on the website follow the selected locale; native date pickers may use your browser/device language. Bot dates are entered as `YYYY-MM-DD`; amounts accept a decimal point or comma, without thousands separators. Previously delivered Telegram messages are not rewritten. All translations ship with the app; no budget information goes to a translation service.
+
+## Removing categories
+
+Open **Transactions → Manage categories**. Under Expenses or Income, choose **Remove** and confirm. This removes the category from your website and bot suggestions only; past transactions, balances, debt payments, and report totals stay intact. Each user's categories are independent, and income and expense categories are managed separately.
+
+Default categories remain in the manager with a **Restore** button. A removed custom category can be recreated by typing it into a new transaction and selecting **Save category for future use**. Saving a removed default category this way also restores it, only if the transaction is successfully saved.
+
 ## Telegram menus
 
 Send `/start` or `/home` in a private chat. Telegram is a focused companion:
@@ -22,6 +36,7 @@ Send `/start` or `/home` in a private chat. Telegram is a focused companion:
 - **Income / Expense**: choose an account and currency, amount, category, note, and date; review and confirm.
 - **Transfer / Exchange** (`/transfer`, `/exchange`): choose source and destination wallets, amount, and date; exchanges accept your custom rate or the final amount received. Review both balance changes before confirming.
 - **Current state** (`/report` or `/balance`): current estimate in your main currency using its own saved Current state filters, this month's income/expenses, outstanding debts, and goal progress.
+- **Language** (`/language`): manually select the interface and report language.
 - **Open website** (`/web`): open the configured website address for account, debt, goal, savings, and report-schedule management.
 
 Scheduled daily, weekly, and monthly reports still arrive in the chat. **Current state** is the only on-demand report in the bot. Management forms have been removed from Telegram, including unfinished forms from older versions. **Back** revisits the previous transaction step; **Home** or **Cancel** discards the unfinished transaction. Transaction state and update receipts persist across restarts and remain encrypted. Telegram update redelivery cannot duplicate financial writes. A reply can appear twice if Telegram accepted it just before the worker stopped, but the transaction remains recorded once.

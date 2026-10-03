@@ -280,3 +280,31 @@ def test_exchange_received_amount_http_roundtrip(telegram_login):
             assert [a['balance'] for a in client.get('/api/accounts').json()] == ['0.000000', '10.000000']
     finally:
         app.dependency_overrides.clear()
+
+
+def test_language_and_categories_http(telegram_login):
+    engine = create_engine('sqlite://', connect_args={'check_same_thread': False}, poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    def db():
+        with Session(engine, expire_on_commit=False) as session:
+            yield session
+    app.dependency_overrides[get_db] = db
+    try:
+        with TestClient(app) as client:
+            headers = {'Origin': 'http://localhost:8000'}
+            assert client.get('/api/categories/manage').status_code == 401
+            assert client.post('/api/preferences/language', headers=headers, json={'language': 'ru'}).status_code == 401
+            telegram_login(client)
+            assert client.post('/api/preferences/language', headers=headers, json={'language': 'ru'}).json()['language'] == 'ru'
+            assert client.post('/api/preferences/language', headers=headers, json={'language': 'auto'}).status_code == 422
+            assert client.get('/api/preferences').json()['language'] == 'ru'
+            response = client.post('/api/categories/change', headers=headers, json={'kind': 'expense', 'name': 'Grocery'})
+            assert response.status_code == 200
+            assert next(c for c in response.json()['expense'] if c['name'] == 'Grocery')['removed']
+            assert 'Grocery' not in client.get('/api/categories').json()['expense']
+            assert client.post('/api/categories/change', headers={'Origin': 'https://attacker.invalid'}, json={'kind': 'expense', 'name': 'Rent'}).status_code == 403
+            telegram_login(client, telegram_id=222)
+            assert client.get('/api/preferences').json()['language'] == 'en'
+            assert 'Grocery' in client.get('/api/categories').json()['expense']
+    finally:
+        app.dependency_overrides.clear()

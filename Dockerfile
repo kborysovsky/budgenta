@@ -3,6 +3,7 @@ WORKDIR /frontend
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
+COPY locales/ /locales/
 RUN npm run build
 
 FROM python:3.12-slim AS backend-base
@@ -13,6 +14,7 @@ COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt \
     && useradd --create-home budgenta
 COPY backend/ ./backend/
+COPY locales/ ./locales/
 USER budgenta
 
 FROM backend-base AS bot

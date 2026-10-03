@@ -1,4 +1,5 @@
 """Durable monthly savings and report jobs, driven by the Telegram worker."""
+from backend.core.i18n import tr, localized
 import json
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -47,6 +48,7 @@ def notify(db, user_id, key, message):
         db.add(Notification(user_id=user_id, job_key=job_key, payload=message))
 
 
+@localized
 def run_user_jobs(db, user_id, now=None):
     now = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo(timezone_name()))
     current_day = now.date()
@@ -70,17 +72,17 @@ def run_user_jobs(db, user_id, now=None):
         amount = rule.amount if rule.mode == 'fixed' else max(Decimal(0), service.balance(db, source.id))
         if due < current_day.replace(day=1) and not (rule.day == 0 and current_day == due + timedelta(days=1)):
             # Do not unexpectedly drain several missed months after a long outage.
-            result = 'Skipped: the scheduled month passed while the worker was offline.'
+            result = tr('Skipped: the scheduled month passed while the worker was offline.')
         elif amount <= 0:
-            result = 'Skipped: no positive balance left to save.'
+            result = tr('Skipped: no positive balance left to save.')
         else:
             try:
                 operation = service.transfer(db, user_id, Transfer(source_id=source.id, destination_id=target.id, amount=amount, date=current_day), commit=False)
-                result = f'Saved {amount} {source.currency} from {source.name} to {target.name}.'
+                result = tr('Saved {amount} {currency} from {source} to {target}.', amount=amount, currency=source.currency, source=source.name, target=target.name)
             except service.BudgetError as exc:
-                result = 'Skipped: '+str(exc)
+                result = tr('Skipped: ')+tr(str(exc))
         db.add(SavingsRun(rule_id=rule.id, run_key=key, scheduled_date=due, result=result, operation_id=operation))
-        notify(db, user_id, key, f'Monthly savings · {due.isoformat()}\n{result}')
+        notify(db, user_id, key, f"{tr('Monthly savings')} · {due.isoformat()}\n{result}")
         # Advance only this occurrence; missed months are each marked skipped on
         # later ticks, so new monthly balances are never swept retroactively.
         rule.next_run = scheduled_date(next_month(due), rule.day)

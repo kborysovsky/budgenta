@@ -1,4 +1,5 @@
 """Public exchange quotes. No account values or user information leave the app."""
+from backend.core.i18n import tr
 import os
 import time
 from datetime import datetime, timezone, timedelta
@@ -133,20 +134,20 @@ def balance_valuation(accounts, currency='USD', quote_fn=None):
 def balance_heading(result):
     currency = result.get('currency', 'USD')
     if result.get('unavailable'):
-        return f'Estimated balance in {currency}: unavailable (exchange rate missing)'
-    heading = 'Estimated balance' if result['complete'] else 'Partial balance (rates missing)'
+        return tr('Estimated balance in {currency}: unavailable (exchange rate missing)', currency=currency)
+    heading = tr('Estimated balance') if result['complete'] else tr('Partial balance (rates missing)')
     return f"{heading}: {result.get('total', result['total_usd'])} {currency}"
 
 
 def message(result, *, include_rates=True):
-    lines = [balance_heading(result), 'Account balances; separate debt records are not deducted.']
+    lines = [balance_heading(result), tr('Account balances; separate debt records are not deducted.')]
     lines += [f"{a['name']}: {report_amount(a['balance'])} {a['currency']}" for a in result['accounts']]
     if include_rates:
-        lines += [f"{q['display_rate']} · {q['source']} · {q['as_of']}" for q in result['quotes'] if q['currency']!='USD']
+        lines += [f"{display_quote(q)} · {tr(q['source'])} · {q['as_of']}" for q in result['quotes'] if q['currency']!='USD']
     if result['missing']:
-        lines.append(('Rates unavailable: ' if result.get('unavailable') else 'Excluded, rate unavailable: ')+', '.join(result['missing']))
+        lines.append((tr('Rates unavailable: ') if result.get('unavailable') else tr('Excluded, rate unavailable: '))+', '.join(result['missing']))
     if result['stale']:
-        lines.append('Warning: cached rates used because a provider is unavailable.')
+        lines.append(tr('Warning: cached rates used because a provider is unavailable.'))
     return '\n'.join(lines)
 
 
@@ -223,15 +224,23 @@ def grouped_by_usd(result):
 
 
 def current_balance_message(result, *, include_rates=True):
-    lines = [balance_heading(result), 'Accounts · highest USD balance first']
+    lines = [balance_heading(result), tr('Accounts · highest USD balance first')]
     groups = grouped_by_usd(result)
     for group in groups:
         lines.append(f"{group['name']}:")
         lines.append('  '+' · '.join(f"{report_amount(a['balance'])} {a['currency']}" for a in group['balances']))
-    if not groups: lines.append('No accounts included.')
+    if not groups: lines.append(tr('No accounts included.'))
     if include_rates:
-        details = [f"{q['display_rate']} · {q['source']} · {q['as_of']}" for q in result['quotes'] if q['currency']!='USD']
-        if details: lines += ['Exchange rates']+details
-    if result['missing']: lines.append('Rates unavailable: '+', '.join(result['missing'])+('. The converted total cannot be calculated.' if result.get('unavailable') else '. Unpriced accounts are listed last and excluded from the converted total where no rate is available.'))
-    if result['stale']: lines.append('Cached exchange rates used; estimate may be out of date.')
+        details = [f"{display_quote(q)} · {tr(q['source'])} · {q['as_of']}" for q in result['quotes'] if q['currency']!='USD']
+        if details: lines += [tr('Exchange rates')]+details
+    if result['missing']: lines.append(tr('Rates unavailable: ')+', '.join(result['missing'])+(tr('. The converted total cannot be calculated.') if result.get('unavailable') else tr('. Unpriced accounts are listed last and excluded from the converted total where no rate is available.')))
+    if result['stale']: lines.append(tr('Cached exchange rates used; estimate may be out of date.'))
     return '\n'.join(lines)
+
+
+def display_quote(quote):
+    value = quote['display_rate']
+    for suffix in (' (official)', ' (blue venta)'):
+        if value.endswith(suffix):
+            return value[:-len(suffix)] + tr(suffix)
+    return value

@@ -1,4 +1,6 @@
 """Telegram polling transport, with durable form state and update idempotency."""
+from backend.core.i18n import tr, language_scope, LANGUAGES
+from backend.services.reporting import get_preferences
 import asyncio
 import json
 import os
@@ -39,19 +41,20 @@ def process_update(update):
             else:
                 user=find_or_create_user(db,sender['id'],sender.get('first_name','You'))
                 value=message.get('text','')
-                if callback:
-                    data=callback.get('data','')
-                    approved=data.startswith('login:') and login_flow.approve(db,data[6:],user.id)
-                    response=dialogue.reply('Login approved. Return to your browser and choose Continue.' if approved else 'This login has expired or was already approved. Start again in the browser.')
-                elif value.startswith('/start login_'):
-                    identifier=value.split('login_',1)[1].strip()
-                    challenge=db.get(LoginChallenge,identifier)
-                    if not challenge or challenge.expires_at <= login_flow.now() or challenge.consumed or challenge.user_id:
-                        response=dialogue.reply('This login expired. Start a new login on the website.')
+                with language_scope(get_preferences(db, user.id)['language']):
+                    if callback:
+                        data=callback.get('data','')
+                        approved=data.startswith('login:') and login_flow.approve(db,data[6:],user.id)
+                        response=dialogue.reply(tr('Login approved. Return to your browser and choose Continue.') if approved else tr('This login has expired or was already approved. Start again in the browser.'))
+                    elif value.startswith('/start login_'):
+                        identifier=value.split('login_',1)[1].strip()
+                        challenge=db.get(LoginChallenge,identifier)
+                        if not challenge or challenge.expires_at <= login_flow.now() or challenge.consumed or challenge.user_id:
+                            response=dialogue.reply(tr('This login expired. Start a new login on the website.'))
+                        else:
+                            response=dialogue.reply(tr('Sign in to Budgenta at {origin}?\nCode: {code}\nOnly approve if you started this login and the code matches your browser.', origin=os.getenv('APP_ORIGIN'), code=identifier[:6].upper()), inline=[[{'text':tr('Approve login'),'callback_data':'login:'+identifier}]])
                     else:
-                        response=dialogue.reply(f"Sign in to Budgenta at {os.getenv('APP_ORIGIN')}?\nCode: {identifier[:6].upper()}\nOnly approve if you started this login and the code matches your browser.", inline=[[{'text':'Approve login','callback_data':'login:'+identifier}]])
-                else:
-                    response=dialogue.handle(db,user,value)
+                        response=dialogue.handle(db,user,value)
                 payload={'chat_id':message['chat']['id'], **response}
                 if callback: payload['callback_id']=callback['id']
             db.add(BotReceipt(update_id=update_id,payload=json.dumps(payload),sent=bool(payload.get('skip'))))
@@ -119,7 +122,7 @@ async def main():
     if engine.dialect.name=='postgresql' and not guard.scalar(sql('SELECT pg_try_advisory_lock(76243103)')):
         raise SystemExit('Another Budgenta bot worker is already running.')
     async with httpx.AsyncClient(base_url=f'https://api.telegram.org/bot{token}/',timeout=40) as client:
-        await telegram(client,'setMyCommands',{'commands':[{'command':'start','description':'Open Budgenta · your budget agent'},{'command':'expense','description':'Add an expense'},{'command':'income','description':'Add income'},{'command':'transfer','description':'Transfer between accounts'},{'command':'exchange','description':'Exchange by rate or amount received'},{'command':'report','description':'Current balances, debts and goals'},{'command':'web','description':'Manage your budget on the website'},{'command':'home','description':'Return to the menu'},{'command':'back','description':'Go back one step'},{'command':'cancel','description':'Cancel this transaction'}]})
+        await telegram(client,'setMyCommands',{'commands':[{'command':'start','description':'Open Budgenta · your budget agent'},{'command':'expense','description':'Add an expense'},{'command':'income','description':'Add income'},{'command':'transfer','description':'Transfer between accounts'},{'command':'exchange','description':'Exchange by rate or amount received'},{'command':'report','description':'Current balances, debts and goals'},{'command':'web','description':'Manage your budget on the website'},{'command':'home','description':'Return to the menu'},{'command':'back','description':'Go back one step'},{'command':'cancel','description':'Cancel this transaction'},{'command':'language','description':'Language / Язык / Мова / Idioma'}]})
         await telegram(client,'setChatMenuButton',{'menu_button':{'type':'commands'}})
         with Session() as db:
             offset=(db.scalar(select(func.max(BotReceipt.update_id))) or 0)+1

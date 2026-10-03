@@ -1,4 +1,5 @@
 <script setup>
+import { t, numberLocale } from '../i18n.js'
 import AppIcon from './AppIcon.vue'
 import { computed, ref, useId, nextTick, watch } from 'vue'
 const props = defineProps({ modelValue: [String, Number], options: { type: Array, default: () => [] }, label: String, placeholder: { type: String, default: 'Choose an option' }, valueKey: { type: String, default: 'value' }, optionLabel: Function, allowCustom: Boolean, required: Boolean, disabled: Boolean, maxlength: Number })
@@ -7,10 +8,10 @@ const id = useId(), input = ref(null), opened = ref(false), query = ref(''), act
 const rows = computed(() => props.options.map(option => ({ value: typeof option === 'object' ? option[props.valueKey] : option, label: String(props.optionLabel ? props.optionLabel(option) : typeof option === 'object' ? option.label : option) })))
 const chosen = computed(() => rows.value.find(row => row.value === props.modelValue))
 const hasValue = computed(() => props.modelValue !== '' && props.modelValue !== undefined && props.modelValue !== null)
-const hint = computed(() => chosen.value?.label || (hasValue.value && props.allowCustom ? props.modelValue : props.placeholder))
+const hint = computed(() => chosen.value?.label || (hasValue.value && props.allowCustom ? props.modelValue : t(props.placeholder)))
 const filtered = computed(() => rows.value.filter(row => row.label.toLocaleLowerCase().includes(query.value.toLocaleLowerCase())))
-watch([() => props.modelValue, () => props.required, query], () => {
-  input.value?.setCustomValidity(props.required && !hasValue.value && !props.allowCustom ? 'Choose an option from the list.' : '')
+watch([() => props.modelValue, () => props.required, query, numberLocale], () => {
+  input.value?.setCustomValidity(props.required && !hasValue.value && !props.allowCustom ? t('Choose an option from the list.') : '')
 }, { flush: 'post' })
 function open() { if (!props.disabled && !opened.value) { query.value = ''; active.value = -1; opened.value = true } }
 function changeQuery(event) { query.value = event.target.value; opened.value = true; active.value = -1; if (props.allowCustom) emit('update:modelValue', query.value) }
@@ -34,13 +35,13 @@ function keydown(event) {
 </script>
 <template>
   <div class="search-select">
-    <input ref="input" type="text" role="combobox" :aria-label="label" aria-autocomplete="list" aria-haspopup="listbox" :aria-expanded="opened" :aria-controls="`${id}-options`" :aria-activedescendant="opened && active >= 0 ? `${id}-${active}` : undefined" :aria-required="required" :placeholder="hint" :value="query" :required="required && !hasValue" :disabled="disabled" :maxlength="maxlength" autocomplete="off" @focus="open" @click="open" @input="changeQuery" @blur="blur" @keydown="keydown">
+    <input ref="input" type="text" role="combobox" :aria-label="$t(label)" aria-autocomplete="list" aria-haspopup="listbox" :aria-expanded="opened" :aria-controls="`${id}-options`" :aria-activedescendant="opened && active >= 0 ? `${id}-${active}` : undefined" :aria-required="required" :placeholder="hint" :value="query" :required="required && !hasValue" :disabled="disabled" :maxlength="maxlength" autocomplete="off" @focus="open" @click="open" @input="changeQuery" @blur="blur" @keydown="keydown">
     <span class="select-chevron" aria-hidden="true"><AppIcon name="chevron-down" /></span>
-    <ul v-if="opened" :id="`${id}-options`" role="listbox" :aria-label="`${label} options`" class="select-options">
+    <ul v-if="opened" :id="`${id}-options`" role="listbox" :aria-label="$t(&quot;{v0} options&quot;, { v0: label })" class="select-options">
       <!-- Keep focus until click: iOS can still blur after a canceled pointerdown.
            Cancel mousedown instead, leaving touch scrolling uninterrupted. -->
       <li v-for="(row, index) in filtered" :id="`${id}-${index}`" :key="row.value" role="option" :aria-selected="row.value === modelValue" :class="{ highlighted: index === active }" @mousedown.prevent @click.prevent="choose(row)">{{ row.label }}<span v-if="row.value === modelValue" aria-hidden="true"><AppIcon name="check" /></span></li>
-      <li v-if="!filtered.length" class="select-empty" role="presentation">{{ allowCustom ? 'Custom value — type your own or choose another.' : 'No matching options.' }}</li>
+      <li v-if="!filtered.length" class="select-empty" role="presentation">{{ allowCustom ? $t("Custom value — type your own or choose another.") : $t("No matching options.") }}</li>
     </ul>
   </div>
 </template>

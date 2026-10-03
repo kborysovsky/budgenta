@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException
 from backend.services import budget as service
 from backend.web.auth import get_user
 from backend.persistence.database import get_db
-from backend.core.schemas import SetEnabled, ReportPreferences, CurrentStatePreferences, AccountsPagePreferences, MainCurrencySettings
+from backend.core.schemas import SetEnabled, ReportPreferences, CurrentStatePreferences, AccountsPagePreferences, MainCurrencySettings, LanguageSettings
 from backend.services import rates
 from backend.services import scheduler
 from backend.services import reporting
@@ -41,6 +41,10 @@ def update_report_settings(data: SetEnabled, user=Depends(get_user), db=Depends(
 @router.get('/api/preferences')
 def preferences(user=Depends(get_user), db=Depends(get_db)):
     return reporting.get_preferences(db, user.id)
+
+@router.post('/api/preferences/language')
+def save_language(data: LanguageSettings, user=Depends(get_user), db=Depends(get_db)):
+    return reporting.save_language(db, user.id, data.language)
 
 
 @router.post('/api/preferences')
