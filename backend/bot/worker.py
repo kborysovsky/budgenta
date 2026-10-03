@@ -96,10 +96,18 @@ async def deliver(client, update_id, payload):
         db.commit()
 
 async def deliver_notifications(client):
+    from backend.services.budget_limits import notification_active
     with Session() as db:
         rows = db.scalars(select(Notification).where(Notification.sent == False).order_by(Notification.id)).all()
         pending = [(row.id, db.get(User, row.user_id).telegram_id, row.payload) for row in rows]
     for identifier, chat_id, message in pending:
+        with Session() as db:
+            record = db.get(Notification, identifier)
+            if not record or not notification_active(db, record):
+                if record and not record.sent:
+                    record.sent = True
+                    db.commit()
+                continue
         if chat_id > 0:
             for start in range(0, len(message), 3500):
                 try:

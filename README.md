@@ -17,6 +17,7 @@ Budgenta is a personal budgeting application with a Vue website and a Telegram c
 - **Transactions:** income, expenses, custom income/expense categories with an optional permanent save (including Outside Food presets), transfers between matching currencies, and exchanges across currencies/account types at a custom rate or a final received amount (with the rate calculated automatically). Deleting a mistaken transaction reverses related transfers, exchanges, or debt payments atomically.
 - **Category management:** remove default or custom income/expense categories from your suggestions without changing transaction history; restore defaults at any time under **Transactions → Manage categories**.
 - **Planning:** debt repayments from a selected account, goals linked to savings balances, manual savings deposits/withdrawals, and recurring fixed or remaining-balance savings transfers.
+- **Budget Limits (optional):** monthly expense-category limits with one shared limit across selected currencies, web progress and over-budget tracking, and Telegram alerts at 25%, 15%, 10%, 5%, and 0% remaining. Enable budget information independently in each report and the dashboard. Expenses remain allowed when a limit is exceeded.
 - **Main currency:** choose the dashboard and Telegram estimated-total currency from the dashboard gear button, including EUR and UAH. UAH reference rates update automatically and appear in the dashboard rate list.
 - **Reports:** incoming/outgoing transfer statistics (including exchanges), hidden zero figures, category percentages of total spending across currencies (converted to USD) and independent daily, weekly, monthly, Current state, and dashboard settings for accounts, currencies, savings, and exchange-rate visibility. Telegram Current state sorts accounts by USD value while displaying their original currencies.
 - **Telegram:** account registration and browser login approval, guided income/expense entry, transfers and custom-rate exchanges, Current state, and scheduled reports. Management stays on the website.
@@ -40,7 +41,7 @@ See the [user guide](docs/user-guide.md) for financial rules and controls, and [
 │   │   ├── login_flow.py        # Browser-bound login challenge endpoints
 │   │   └── routes/              # Accounts, auth, planning, reports, savings,
 │   │                           # system configuration, and transactions
-│   ├── services/               # Shared budget rules, management, reporting,
+│   ├── services/               # Shared financial rules, budget limits, reporting,
 │   │                           # scheduler, quotes, users, and login approval
 │   ├── persistence/            # SQLAlchemy sessions, encrypted models, migrations
 │   ├── core/                   # Validation schemas, encryption, calendar helpers
@@ -54,6 +55,7 @@ See the [user guide](docs/user-guide.md) for financial rules and controls, and [
 │   │   ├── components/          # Shared searchable form controls
 │   │   ├── features/
 │   │   │   ├── accounts/       # Account layout and management components
+│   │   │   ├── budgets/        # Optional limits, shared-currency usage, progress
 │   │   │   ├── planning/       # Debt and goal components
 │   │   │   ├── reports/        # Report preferences and previews
 │   │   │   ├── transactions/   # Transfer/exchange review and confirmation

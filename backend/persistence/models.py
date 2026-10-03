@@ -136,6 +136,29 @@ class Notification(Base):
     job_key: Mapped[str] = mapped_column(String(64), unique=True)
     payload: Mapped[str] = mapped_column(Encrypted())
     sent: Mapped[bool] = mapped_column(default=False)
+    budget_id: Mapped[int | None] = mapped_column(ForeignKey('budget_limits.id'), nullable=True, index=True)
+    budget_context: Mapped[str | None] = mapped_column(Encrypted(), nullable=True)
+
+
+class BudgetLimit(Base):
+    __tablename__ = 'budget_limits'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    category_key: Mapped[str] = mapped_column(String(64), unique=True)
+    category: Mapped[str] = mapped_column(Encrypted())
+    amount: Mapped[Decimal] = mapped_column(Encrypted('decimal'))
+    currency: Mapped[str] = mapped_column(Encrypted())
+    expense_currencies: Mapped[str] = mapped_column(Encrypted(), default='null')
+    enabled: Mapped[int] = mapped_column(Encrypted('int'), default=1)
+    deleted: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+
+
+class BudgetAlertState(Base):
+    __tablename__ = 'budget_alert_states'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    budget_id: Mapped[int] = mapped_column(ForeignKey('budget_limits.id'), index=True)
+    state_key: Mapped[str] = mapped_column(String(64), unique=True)
+    payload: Mapped[str] = mapped_column(Encrypted())
 
 
 class Preferences(Base):

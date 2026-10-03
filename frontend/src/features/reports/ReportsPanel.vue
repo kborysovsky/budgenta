@@ -1,5 +1,6 @@
 <script setup>
 import { t, numberLocale } from '../../i18n.js'
+import BudgetUsage from '../budgets/BudgetUsage.vue'
 import AppIcon from '../../components/AppIcon.vue'
 import SearchSelect from '../../components/SearchSelect.vue'
 import { activityRows, activeTotals, activityAmount } from '../../utils/activity.js'
@@ -44,6 +45,8 @@ async function showPreview() {
           <label class="check-label"><input type="checkbox" v-model="draft.current_state.include_monthly_summary">{{ $t("Show this month's income, expenses, and transfers") }}</label>
           <label class="check-label"><input type="checkbox" v-model="draft.current_state.include_categories" :disabled="!draft.current_state.include_monthly_summary">{{ $t("Include expenses by category") }}</label>
         </template>
+        <label class="check-label"><input type="checkbox" v-model="draft[selected].include_budgets">{{ $t('Include Budget Limits') }}</label>
+        <p v-if="draft[selected].include_budgets" class="muted">{{ $t('Enable Budget Limits on the Budgets page. Budget usage follows this report’s account and currency filters. Daily and weekly reports show the current month; monthly reports show the reported month.') }}</p>
         <label class="check-label"><input type="checkbox" v-model="draft[selected].include_rates">{{ $t("Show exchange-rate details") }}</label>
         <p class="muted">{{ $t("Conversion stays active for estimated totals and account sorting when rate details are hidden. Missing or outdated rate warnings remain visible.") }}</p>
         <div class="account-choices"><h4>{{ $t("Excluded currencies") }}</h4><p class="muted" v-if="selected === 'current_state'">{{ $t("Exclude currencies from Current state's total, account order, debts, goals, and monthly summary.") }}</p><p class="muted" v-else-if="selected === 'dashboard'">{{ $t("Exclude currencies from dashboard balances, account cards, income, expenses, and recent activity.") }}</p><p class="muted" v-else>{{ $t("Exclude currencies from this report's balances, estimated total, income, expenses, and category breakdown.") }}</p><p class="muted">{{ $t("Each tab has its own exclusions. Accounts and transactions remain available on their pages.") }}</p><label v-for="currency in currencies" :key="currency" class="check-label"><input type="checkbox" :value="currency" v-model="draft[selected].excluded_currencies">{{ $t("Exclude") }} {{ currency }}</label></div>
@@ -66,6 +69,7 @@ async function showPreview() {
       <div v-for="row in report.category_totals" :key="row.category" class="category-row"><span>{{ $category(row.category, 'expense') }}</span><b class="category-amount"><span v-for="amount in row.amounts" :key="amount.currency" class="category-native-amount">{{ Number(amount.amount).toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} {{ amount.currency }}</span><small>{{ row.percentage == null ? $t("Percentage unavailable") : $t("{v0}% of total expenses", { v0: row.percentage }) }}</small></b></div>
       <details v-if="settings.monthly?.include_rates && report.expense_valuation?.quotes?.some(q => q.currency !== 'USD')"><summary>{{ $t("Expense exchange rates & sources") }}</summary><p v-for="q in report.expense_valuation.quotes.filter(q => q.currency !== 'USD')" :key="q.currency" class="muted">{{ $quote(q) }} · {{ $t(q.source) }} · {{ q.as_of }}{{ q.stale ? $t(" (cached)") : '' }}</p></details>
     </article>
+    <BudgetUsage :data="report.budgets" :show-rates="settings.monthly?.include_rates" title />
     <p v-if="!activeTotals(report.totals).length" class="empty">{{ $t("No activity for these accounts this month.") }}</p>
     <div class="savings-banner"><div><h3>{{ $t("Close a completed month") }}</h3><p>{{ $t("Closing prevents new backdated entries. Deleting a mistaken transaction still updates balances and this report.") }}</p></div><button class="secondary" :disabled="report.closed || report.month >= new Date().toLocaleDateString('en-CA').slice(0, 7)" @click="$emit('close-month')">{{ report.closed ? $t("Month closed") : $t("Close month") }}<AppIcon v-if="report.closed" name="check" /></button></div>
   </section>

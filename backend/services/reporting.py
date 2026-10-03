@@ -43,7 +43,7 @@ def save_preferences(db, user_id, data):
     value = data.model_dump()
     existing = get_preferences(db, user_id)
     # These have dedicated endpoints. A stale reports form must not undo them.
-    for field in ('language', 'hidden_categories'):
+    for field in ('language', 'hidden_categories', 'budget_limits'):
         value[field] = existing[field]
     if 'main_currency' not in data.model_fields_set:
         value['main_currency'] = existing['main_currency']
@@ -52,6 +52,8 @@ def save_preferences(db, user_id, data):
             value[section] = existing[section]
     allowed = set(db.scalars(select(AccountGroup.id).where(AccountGroup.user_id == user_id)))
     for section in ('daily', 'weekly', 'monthly', 'dashboard', 'current_state'):
+        if 'include_budgets' not in getattr(data, section).model_fields_set:
+            value[section]['include_budgets'] = existing[section]['include_budgets']
         selected = value[section]['account_ids']
         if selected is not None and not set(selected) <= allowed:
             raise service.BudgetError('Choose only your own accounts.')
@@ -102,6 +104,9 @@ def dashboard(db, user_id, month):
     report = service.monthly(db, user_id, month)
     report['transactions'] = [t for t in report['transactions'] if matches({'kind':t['account_kind'], 'group_id':t['group_id'], 'currency':t['currency']}, config)]
     report['totals'] = flow_totals(((t['currency'], t['kind'], t['amount']) for t in report['transactions']), include_empty=True)
+    if config['include_budgets']:
+        from backend.services import budget_limits
+        report['budgets'] = budget_limits.snapshot(db, user_id, month, config=config)
     return report
 
 
@@ -126,6 +131,10 @@ def period_report(db, user_id, start, end, config, *, quote_fn=None):
 def monthly_report(db, user_id, month, *, quote_fn=None):
     start, end = service.month_bounds(month)
     result = period_report(db, user_id, start, end, get_preferences(db,user_id)['monthly'], quote_fn=quote_fn)
+    config = get_preferences(db, user_id)['monthly']
+    if config['include_budgets']:
+        from backend.services import budget_limits
+        result['budgets'] = budget_limits.snapshot(db, user_id, month, config=config, quote_fn=quote_fn)
     return {**result, 'month':month, 'closed':month in service.closed_months(db,user_id)}
 
 
@@ -152,6 +161,10 @@ def report_message(db, user_id, frequency, now=None, quote_fn=None):
     if config['include_categories']:
         lines += category_lines(report)
     lines.append(tr('Savings included.' if config['include_savings'] else 'Savings excluded.'))
+    if config['include_budgets']:
+        from backend.services import budget_limits
+        month = end.strftime('%Y-%m') if frequency == 'monthly' else now.strftime('%Y-%m')
+        lines += budget_limits.lines(budget_limits.snapshot(db, user_id, month, config=config, quote_fn=quote_fn))
     return '\n'.join(lines)
 
 
@@ -222,4 +235,7 @@ def current_state(db, user_id, now=None, quote_fn=None):
     if config['include_goals']:
         goals = [g for g in service.goals(db,user_id) if g['currency'] not in config['excluded_currencies']]
         lines += [tr('Goals')] + ([f"{g['name']}: {rates.report_amount(g['saved'])} / {rates.report_amount(g['target'])} {g['currency']}" for g in goals] or [tr('No active goals.')])
+    if config['include_budgets']:
+        from backend.services import budget_limits
+        lines += budget_limits.lines(budget_limits.snapshot(db, user_id, now.strftime('%Y-%m'), config=config, quote_fn=quote_fn))
     return '\n'.join(lines)

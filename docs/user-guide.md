@@ -60,6 +60,39 @@ UAH rates update automatically from the National Bank of Ukraine. Expand **Excha
 - Goals track a target, progress, and optional deadline. Attach one or more savings currency balances matching the goal currency; progress then follows their combined actual balance automatically, including deposits, withdrawals, corrections, and transaction reversals. Each savings currency balance can fund only one active goal. Links replace manual progress and do not add money to account totals. With no savings links, progress can be updated manually.
 - Future-dated manual ledger entries, live bank integrations, recurring expense payments, and transaction editing are not included. Monthly savings transfers and deletion with reversal are supported.
 
+## Budget Limits (optional)
+
+Open **Budgets**, select **Enable Budget Limits**, and save settings. Tracking starts disabled for every user. **Telegram threshold notifications** can be turned off separately. Add a budget by choosing an expense category, positive monthly amount, currency, and enabled state. Use its gear button to edit, disable, remove, or reset alerts. A category can have one budget; custom category names are supported. Removing a budget or disabling tracking never changes transactions or account balances.
+
+Each category has **one shared limit**. Keep **Count expenses in all currencies** enabled, or choose the expense currencies to include. For example, a 500 USD Grocery budget combines Grocery expenses paid in USD, ARS, and EUR, converted to USD. The budget currency is independent of your dashboard's main currency. USD, EUR, ARS, UAH, USDT, TRX, BTC, and ETH are available, with the same amount precision as transactions.
+
+The selected month's table shows the limit, spent amount, remaining amount, percentage used, and progress. Overspending is allowed: spending 125 against a 100 limit shows **125% used**, **−25 remaining**, and **Over budget**, while the progress bar fills to 100%. Limits do not affect transaction validation or introduce an extra confirmation step. Totals include enabled budgets only and stay separate by budget currency; different currencies are never added together without conversion.
+
+Usage counts live expense entries in the category, including debt repayments and expenses from archived accounts. It excludes income, transfers, exchanges, opening balances, corrections, and deleted entries. Deleting a mistaken expense recalculates usage automatically. Removing a category from transaction suggestions does not erase its budget or spending. Category matching ignores capitalization and extra whitespace.
+
+Limits repeat every calendar month. The month selector lets you inspect older months using the **current limit and current exchange rates**, not historical exchange rates or historical versions of a limit. Editing a limit changes those comparisons too. Same-currency spending requires no rate. Missing conversion rates hide the combined estimate instead of showing a misleading partial total; cached rates show a warning. Threshold alerts wait for complete, fresh conversion data. Expand the exchange-rate details for the rates and sources used.
+
+### Telegram alerts
+
+The running bot checks the current month in your **Reports → Timezone**. It sends alerts at **25%, 15%, 10%, 5%, and 0% remaining**, in your saved language, for example:
+
+```text
+Grocery budget: 10.00% remaining — 50.00 USD left from 500.00 USD.
+Budget Limits · 2026-10
+```
+
+An expense that crosses several thresholds produces one alert for the most urgent crossed threshold. The text uses the actual remaining percentage and amount. At zero it says fully used; beyond zero it says exceeded and includes the usage percentage and negative remaining amount. Enabling a budget with existing spending may immediately notify you of thresholds already reached.
+
+Each crossed threshold is recorded once per budget/month. Restarting the worker, deleting an expense, currency fluctuations, or disabling and re-enabling a budget do not repeat delivered thresholds. Raising/changing a limit re-arms previously delivered thresholds only when the updated comparison falls back below them; if rates are unavailable, that check waits for reliable rates. Lowering a limit can trigger newly crossed thresholds. **Reset this month’s alerts** explicitly clears this month's alert history, allowing a reached threshold to notify again; it does not clear spending. Pending undelivered alerts are cancelled when their budget is changed, removed, disabled, or notifications are disabled. Old-month alerts are skipped after the local month changes.
+
+Delivery uses the existing durable notification outbox. A worker crash after Telegram accepts a message but before acknowledgement can still repeat a delivery. Stopping the bot pauses checks and deliveries; on restart it checks current-month usage. There is no separate budget-statistics button or command in Telegram.
+
+### Budgets in reports and the dashboard
+
+Under **Reports**, select **Current state**, **Daily**, **Weekly**, **Monthly**, or **Dashboard**, then enable **Include Budget Limits** and save. Each option starts off independently, and the global Budget Limits feature must also be enabled. Current state, daily, and weekly reports show current-month usage; monthly reports show the reported calendar month. The website's monthly preview follows the month selector.
+
+Included Telegram reports show each budget's spent/limit, a text progress bar, percentage used, remaining amount, and over-budget status. Outside these opted-in reports, only threshold notifications are sent. Report budget usage follows that report's account, expense-currency, and savings filters; excluding a budget's own currency hides that budget row. Consequently, filtered report figures can differ from the complete **Budgets** page and its threshold alerts. Exchange-rate visibility controls also apply to budget details on the dashboard and web report, while missing/stale-rate warnings remain visible.
+
 ## Manage accounts, debts, goals, and savings
 
 All management controls are on the website. Open the small gear button on an account or savings card to access its actions:

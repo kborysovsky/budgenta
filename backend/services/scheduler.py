@@ -42,10 +42,10 @@ def set_reports(db, user_id, enabled):
     db.commit()
 
 
-def notify(db, user_id, key, message):
+def notify(db, user_id, key, message, *, budget_id=None, budget_context=None):
     job_key = identity_key('notification:'+key)
     if not db.scalar(select(Notification.id).where(Notification.job_key == job_key)):
-        db.add(Notification(user_id=user_id, job_key=job_key, payload=message))
+        db.add(Notification(user_id=user_id, job_key=job_key, payload=message, budget_id=budget_id, budget_context=budget_context))
 
 
 @localized
@@ -87,6 +87,8 @@ def run_user_jobs(db, user_id, now=None):
         # later ticks, so new monthly balances are never swept retroactively.
         rule.next_run = scheduled_date(next_month(due), rule.day)
     preference = settings(db, user_id, current_day)
+    from backend.services import budget_limits
+    budget_limits.check_alerts(db, user_id, now)
     for frequency, occurrence in reporting.due_reports(db, user_id, now):
         month = (datetime.fromisoformat(occurrence).date().replace(day=1)-timedelta(days=1)).strftime('%Y-%m')
         key = f'report:{user_id}:{month}' if frequency == 'monthly' else f'report:{user_id}:{frequency}:{occurrence}'

@@ -4,7 +4,7 @@ from backend.persistence.database import Base
 from backend.persistence import models   # register tables
 from backend.core.encryption import Encrypted, PREFIX, cipher, encrypt, decrypt, identity_key
 
-VERSION = 7
+VERSION = 8
 KEY_CHECK_PREFIX = 'budgenta-encryption-check:'
 # Compatibility only: deployed schemas through v6 used the original name.
 LEGACY_KEY_CHECK_PREFIX = 'pocket-encryption-check:'
@@ -33,6 +33,7 @@ def migrate(engine):
         upgrade_entry_columns(conn)
         upgrade_groups(conn)
         upgrade_management(conn)
+        upgrade_budget_limits(conn)
         if current and current.version >= 2:
             if current.version < 3:
                 backfill_links(conn)
@@ -142,3 +143,11 @@ def upgrade_management(conn):
         columns = {c['name'] for c in inspect(conn).get_columns(table)}
         if 'archived' not in columns:
             conn.execute(text(f'ALTER TABLE {table} ADD COLUMN archived BOOLEAN NOT NULL DEFAULT FALSE'))
+
+
+def upgrade_budget_limits(conn):
+    columns = {c['name'] for c in inspect(conn).get_columns('notifications')}
+    for name, definition in {'budget_id': 'INTEGER REFERENCES budget_limits(id)', 'budget_context': 'TEXT'}.items():
+        if name not in columns:
+            conn.execute(text(f'ALTER TABLE notifications ADD COLUMN {name} {definition}'))
+    conn.execute(text('CREATE INDEX IF NOT EXISTS ix_notifications_budget_id ON notifications (budget_id)'))

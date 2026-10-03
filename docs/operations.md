@@ -41,6 +41,14 @@ The script leaves web/bot stopped so you can start the matching release. Applica
 
 If a native `.env` or external client has a PostgreSQL `DATABASE_URL` using the old role/database, change both to `budgenta` without changing its password. Compose supplies the new URL automatically. To back up a still-unmigrated installation manually, use `scripts/backup_database.py --user pocket --database pocket`. Rollback after application migration 7 requires the pre-upgrade backup and matching old code/configuration; old code cannot validate the new marker.
 
+### Budget Limits upgrade (schema 8)
+
+Take a backup before upgrading both web and bot. Migration 8 creates `budget_limits` and `budget_alert_states`, and adds nullable `budget_id` / `budget_context` fields to the notification outbox. Existing ledger rows and report notifications are retained. New category names, limits, currencies, inclusion settings, alert state, and notification context are encrypted; category/month lookup keys use keyed hashes. Existing users start with the feature and all report inclusions disabled.
+
+Budget evaluation runs in the existing bot scheduler under the same per-user database lock as financial writes. Threshold reservations and outbox messages commit together, preventing duplicate enqueueing across competing checks. No additional worker or cron job is needed. The website calculates statistics on request; the bot must be running for notifications. For alert troubleshooting, check the global feature switch, the individual limit, notification settings, the user's report timezone, fresh rates, and whether a threshold has already been delivered. Do not reset alert history merely to retry an interrupted transport delivery.
+
+Authenticated APIs: `GET /api/budget-limits?month=YYYY-MM`, `POST /api/budget-limits/settings`, `POST /api/budget-limits`, and `POST /api/budget-limits/{id}/edit`, `/delete`, `/reset-alerts`. Creation/edit fields are `category`, decimal-string `amount`, `currency`, `enabled`, and `expense_currencies` (`null` for all, otherwise a nonempty list). Settings fields are `enabled` and `notifications_enabled`. Each report section has an `include_budgets` flag. All endpoints enforce user ownership, and mutations require the configured Origin. Changing feature settings uses the dedicated endpoint so a stale report form cannot overwrite them.
+
 ## Backups and recovery
 
 Install the backend dependencies on the host, then run:

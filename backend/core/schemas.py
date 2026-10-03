@@ -126,6 +126,7 @@ class MergeAccounts(BaseModel):
     destination_id: int
 
 class AccountFilter(BaseModel):
+    include_budgets: bool = False
     include_rates: bool = True
     excluded_currencies: list[Currency] = Field(default_factory=list, max_length=8)
     account_ids: list[int] | None = None
@@ -167,7 +168,31 @@ class HiddenCategories(BaseModel):
     expense: list[str] = Field(default_factory=list, max_length=1000)
     income: list[str] = Field(default_factory=list, max_length=1000)
 
+class BudgetLimitSettings(BaseModel):
+    enabled: bool = False
+    notifications_enabled: bool = True
+
+class BudgetLimitInput(BaseModel):
+    category: str = Field(min_length=1, max_length=60)
+    amount: Decimal = Field(gt=0, max_digits=26, decimal_places=8)
+    currency: Currency
+    enabled: bool = True
+    expense_currencies: list[Currency] | None = Field(default=None, max_length=8)
+
+    @field_validator('category')
+    @classmethod
+    def clean_category(cls, value):
+        return NewEntry.clean_category(value)
+
+    @field_validator('expense_currencies')
+    @classmethod
+    def unique_currencies(cls, value):
+        if value is not None and (not value or len(value) != len(set(value))):
+            raise ValueError('Choose at least one currency, without duplicates.')
+        return value
+
 class ReportPreferences(BaseModel):
+    budget_limits: BudgetLimitSettings = Field(default_factory=BudgetLimitSettings)
     language: Language = 'en'
     hidden_categories: HiddenCategories = Field(default_factory=HiddenCategories)
     main_currency: Currency = 'USD'

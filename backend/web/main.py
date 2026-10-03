@@ -11,7 +11,7 @@ from backend.core.config import validate_config
 from backend.web.security import SecurityMiddleware
 from backend.persistence.database import engine
 from backend.persistence.migrations import migrate
-from backend.web.routes import system, auth, accounts, transactions, planning, savings, reports
+from backend.web.routes import system, auth, accounts, transactions, planning, savings, reports, budget_limits
 
 @asynccontextmanager
 async def lifespan(app):
@@ -29,7 +29,7 @@ async def budget_error(request, exc):
     return JSONResponse({"detail": str(exc)}, status_code=400)
 
 
-for routes in (system, auth, accounts, transactions, planning, savings, reports):
+for routes in (system, auth, accounts, transactions, planning, savings, reports, budget_limits):
     app.include_router(routes.router)
 
 static = Path(os.getenv("STATIC_DIR", str(Path(__file__).resolve().parents[2] / "frontend" / "dist")))
