@@ -162,3 +162,8 @@ To disable the job and any pending retries:
 systemctl --user disable --now budgenta-vps-backup.timer
 systemctl --user stop budgenta-vps-backup.service
 ```
+
+
+## Monthly report downloads
+
+`GET /api/reports/{YYYY-MM}/export.csv` and `/export.xlsx` require the signed-in owner and use the saved monthly report filters. The shared `backend.services.monthly_export` service prepares the same tables for both serializers. CSV uses standard-library quoting, UTF-8 BOM, exact decimal strings, and formula-prefix escaping for text cells. Excel uses pinned [XlsxWriter](https://xlsxwriter.readthedocs.io/workbook.html) with in-memory assembly and explicit string writes, disabling automatic formulas and hyperlinks. Files are attachment responses with `Cache-Control: no-store`; no temporary plaintext report is written on the server. This feature requires the updated Python dependencies but no database migration or extra worker.

@@ -1,13 +1,14 @@
 <script setup>
 import { t, numberLocale } from '../../i18n.js'
 import BudgetUsage from '../budgets/BudgetUsage.vue'
+import SpendingChart from './SpendingChart.vue'
 import AppIcon from '../../components/AppIcon.vue'
 import SearchSelect from '../../components/SearchSelect.vue'
 import { activityRows, activeTotals, activityAmount } from '../../utils/activity.js'
 import { ref, watch } from 'vue'
 const props = defineProps({ report: Object, settings: Object, groups: Array, currencies: Array, api: Function })
 const emit = defineEmits(['changed', 'close-month'])
-const busy = ref(false), error = ref(''), saved = ref(''), preview = ref(''), selected = ref('current_state'), draft = ref(null)
+const busy = ref(false), exporting = ref(false), exportError = ref(''), error = ref(''), saved = ref(''), preview = ref(''), selected = ref('current_state'), draft = ref(null)
 const tabs = { current_state: 'Current state', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', dashboard: 'Dashboard' }
 const timezones = [...new Set(['America/Argentina/Buenos_Aires', 'America/New_York', 'Europe/London', 'Europe/Kyiv', 'UTC', ...(Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : [])])].sort()
 const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -21,6 +22,22 @@ async function showPreview() {
   busy.value = true; error.value = ''
   try { preview.value = (await props.api(`/report-preview/${selected.value === 'current_state' ? 'current-state' : selected.value}`)).text }
   catch (e) { error.value = e.message } finally { busy.value = false }
+}
+async function download(format) {
+  if (exporting.value) return
+  const month = props.report.month
+  exporting.value = true; exportError.value = ''
+  try {
+    const response = await fetch(`/api/reports/${encodeURIComponent(month)}/export.${format}`, { credentials: 'same-origin' })
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error(typeof data.detail === 'string' ? data.detail : 'Could not download the monthly report.')
+    }
+    const url = URL.createObjectURL(await response.blob())
+    const link = document.createElement('a'); link.href = url; link.download = `budgenta-${month}.${format}`
+    document.body.appendChild(link); link.click(); link.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
+  } catch (e) { exportError.value = e.message } finally { exporting.value = false }
 }
 </script>
 <template>
@@ -59,7 +76,12 @@ async function showPreview() {
       <pre v-if="preview" class="report-preview">{{ preview }}</pre>
       <p class="muted">{{ $t("Scheduled reports need the bot service running. TRX prices refresh daily at 10:00 in your selected timezone; the quote date is shown with every estimate.") }}</p>
     </form>
-    <h2 class="rules-heading">{{ $t("Monthly report") }}</h2><p class="muted">{{ $t("Uses the saved monthly account, currency, savings, and category filters. Percentages show each category’s share of total expenses across all included currencies, converted to USD at current rates. Categories combine spending in different currencies. Rounding may make the total differ slightly from 100%.") }}</p>
+    <div class="monthly-report-heading"><h2>{{ $t("Monthly report") }} · {{ report.month }}</h2><div class="export-actions"><button type="button" class="secondary" :disabled="exporting || !report.month" @click="download('csv')">{{ $t('Download CSV') }}</button><button type="button" class="secondary" :disabled="exporting || !report.month" @click="download('xlsx')">{{ $t('Excel with chart') }}</button></div></div>
+    <p v-if="exporting" class="muted" role="status">{{ $t('Preparing monthly report…') }}</p><p v-if="exportError" class="error" role="alert">{{ $error(exportError) }}</p>
+    <p class="muted">{{ $t('Detailed downloads include transactions, currency totals, daily activity, account activity, and enabled category and budget summaries. Corrections, opening balances, and deleted transactions are excluded.') }}</p>
+    <p class="muted">{{ $t('Enable monthly category details to include the spending chart. CSV contains tables; Excel also embeds the chart.') }}</p>
+    <p class="muted">{{ $t("Uses the saved monthly account, currency, savings, and category filters. Percentages show each category’s share of total expenses across all included currencies, converted to USD at current rates. Categories combine spending in different currencies. Rounding may make the total differ slightly from 100%.") }}</p>
+    <SpendingChart :report="report" />
     <p class="muted">{{ $t("Transferred out and received from transfers include exchanges and savings moves. They are separate from income and expenses. Zero amounts are hidden.") }}</p><div class="planning-grid"><article v-for="total in activeTotals(report.totals)" :key="total.currency" class="planning-card activity-card"><h3>{{ total.currency }}</h3><div v-for="row in activityRows(total)" :key="row.key" class="category-row"><span>{{ $t(row.label) }}</span><b>{{ activityAmount(row.amount, numberLocale) }}</b></div><p v-if="Number(total.surplus) !== 0" class="muted">{{ $t("Income less expenses:") }} {{ activityAmount(total.surplus, numberLocale) }}</p></article></div>
     <article v-if="report.category_totals?.length" class="planning-card category-summary">
       <h3>{{ $t("Expenses by category · all currencies") }}</h3>
@@ -79,4 +101,7 @@ async function showPreview() {
 .category-summary { margin-top: 20px; }
 .category-native-amount { display: block; }
 .category-summary details { margin-top: 16px; }
+.monthly-report-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 32px 0 16px; }
+.monthly-report-heading h2 { margin: 0; }
+.export-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 </style>

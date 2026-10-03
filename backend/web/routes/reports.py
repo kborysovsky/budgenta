@@ -1,6 +1,7 @@
 """Reports HTTP endpoints."""
 from fastapi import APIRouter
 from fastapi import Depends, HTTPException
+from fastapi.responses import Response
 from backend.services import budget as service
 from backend.web.auth import get_user
 from backend.persistence.database import get_db
@@ -8,6 +9,7 @@ from backend.core.schemas import SetEnabled, ReportPreferences, CurrentStatePref
 from backend.services import rates
 from backend.services import scheduler
 from backend.services import reporting
+from backend.services import monthly_export
 
 router = APIRouter(tags=["reports"])
 
@@ -25,6 +27,20 @@ def usd_balance(dashboard: bool = False, user=Depends(get_user), db=Depends(get_
 @router.get('/api/reports/{month}')
 def expense_report(month: str, user=Depends(get_user), db=Depends(get_db)):
     return reporting.monthly_report(db, user.id, month)
+
+
+@router.get('/api/reports/{month}/export.csv')
+def export_csv(month: str, user=Depends(get_user), db=Depends(get_db)):
+    tables = monthly_export.monthly_tables(db, user.id, month)
+    return Response(monthly_export.csv_bytes(tables), media_type='text/csv; charset=utf-8',
+                    headers={'Content-Disposition': f'attachment; filename="budgenta-{month}.csv"'})
+
+
+@router.get('/api/reports/{month}/export.xlsx')
+def export_excel(month: str, user=Depends(get_user), db=Depends(get_db)):
+    tables = monthly_export.monthly_tables(db, user.id, month)
+    return Response(monthly_export.xlsx_bytes(tables), media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    headers={'Content-Disposition': f'attachment; filename="budgenta-{month}.xlsx"'})
 
 
 @router.get('/api/report-settings')
