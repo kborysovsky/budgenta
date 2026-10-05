@@ -142,6 +142,20 @@ def category_lines(report):
     return expense_breakdown.lines(report)
 
 
+def spending_lines(report, *, quote_fn=None):
+    """Total period expenses in USD, independently of category/rate visibility."""
+    spending = rates.valuation([{'currency': row['currency'], 'balance': row['expenses']}
+                                for row in report['totals']], quote_fn=quote_fn)
+    period = {'start': report['start'], 'end': report['end']}
+    if not spending['complete']:
+        return [tr('Total spending unavailable in USD · {start} to {end}. Missing rates: {currencies}.',
+                   currencies=', '.join(spending['missing']), **period)]
+    lines = [tr('Total spending: {amount} USD (estimated) · {start} to {end}', amount=spending['total_usd'], **period)]
+    if spending['stale']:
+        lines.append(tr('Spending uses cached exchange rates; estimate may be out of date.'))
+    return lines
+
+
 @localized
 def report_message(db, user_id, frequency, now=None, quote_fn=None):
     quote_fn = cache(quote_fn or rates.quote)
@@ -156,7 +170,10 @@ def report_message(db, user_id, frequency, now=None, quote_fn=None):
     config = prefs[frequency]
     report = period_report(db, user_id, start, end, config, quote_fn=quote_fn)
     valuation = rates.balance_valuation(report['accounts'], prefs['main_currency'], quote_fn=quote_fn)
-    lines = [f"{tr(frequency.title() + ' report')} · {now:%Y-%m-%d %H:%M} ({prefs['timezone']})", rates.message(valuation, include_rates=config['include_rates']), tr('Activity · {start} to {end}', start=start, end=end)]
+    balance_lines = rates.message(valuation, include_rates=config['include_rates']).split('\n')
+    lines = [f"{tr(frequency.title() + ' report')} · {now:%Y-%m-%d %H:%M} ({prefs['timezone']})",
+             balance_lines[0], *spending_lines(report, quote_fn=quote_fn), *balance_lines[1:],
+             tr('Activity · {start} to {end}', start=start, end=end)]
     lines += flow_lines(report['totals']) or [tr('No income, expenses, or transfers in this period.')]
     if config['include_categories']:
         lines += category_lines(report)
