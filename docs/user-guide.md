@@ -5,7 +5,7 @@
 ## Telegram login and public accounts
 
 1. Click **Log in with Telegram** on the login page.
-2. Click **Open Telegram**, then **Start** in the bot if Telegram asks.
+2. Choose **Open Telegram app**, **Telegram Web A**, or **Telegram Web K**, then **Start** in the bot if Telegram asks. The web buttons open Telegram directly in a new browser tab; choose the version you normally use. All three buttons share the same login request.
 3. Compare the six-character code with your browser and press **Approve login**.
 4. Return to the original browser and choose **Continue as …**.
 

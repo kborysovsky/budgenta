@@ -105,4 +105,6 @@ footer { flex-wrap: wrap; gap: 12px; }
 .header-tools { display: flex; align-items: center; justify-content: flex-end; gap: 18px; }
 .login-language { position: absolute; top: 18px; right: 24px; z-index: 2; }
 .login-page { position: relative; }
+.telegram-login-links { display: grid; gap: 8px; margin-bottom: 17px; }
+.login-challenge .telegram-login-links .secondary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; margin: 0; }
 @media (max-width: 700px) { .header-tools .private { display: none; } .login-language { top: 12px; right: 16px; } .login-card { padding-top: 72px; } }

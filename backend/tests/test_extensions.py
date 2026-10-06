@@ -2,6 +2,7 @@ import json
 from datetime import date, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
+from urllib.parse import parse_qs, urlsplit
 import pytest
 from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import create_engine, select, text
@@ -95,7 +96,8 @@ def test_rate_failure_uses_flagged_cache_then_excludes(monkeypatch):
     assert rates.quote('EUR') is None
 
 
-def test_login_challenge_is_browser_bound_and_one_use(db, monkeypatch):
+@pytest.mark.parametrize('link_key', ['url', 'web_a_url', 'web_k_url'])
+def test_login_challenge_is_browser_bound_and_one_use(db, monkeypatch, link_key):
     monkeypatch.setenv('TELEGRAM_BOT_USERNAME','example_bot')
     monkeypatch.setenv('TELEGRAM_BOT_TOKEN','test-only')
     response=Response()
@@ -104,6 +106,18 @@ def test_login_challenge_is_browser_bound_and_one_use(db, monkeypatch):
     request=SimpleNamespace(cookies={login_flow.COOKIE:cookie})
     identifier=cookie.split('.')[0]
     assert info['url'].endswith('login_'+identifier)
+    link=urlsplit(info[link_key])
+    if link_key == 'url':
+        assert link.netloc == 't.me' and link.path == '/example_bot'
+    else:
+        assert link.scheme == 'https' and link.netloc == 'web.telegram.org'
+        assert link.path == ('/a/' if link_key == 'web_a_url' else '/k/')
+        link=urlsplit(parse_qs(link.fragment.lstrip('?'))['tgaddr'][0])
+        assert link.scheme == 'tg' and link.netloc == 'resolve'
+        assert parse_qs(link.query)['domain'] == ['example_bot']
+    assert parse_qs(link.query)['start'] == ['login_'+identifier]
+    # Browser secrets must never leave the website, including via Telegram links.
+    assert cookie.split('.')[1] not in json.dumps(info)
     assert login_flow.status(db,request)['approved'] is False
     with pytest.raises(HTTPException): login_flow.complete(db,request,Response())
     db.rollback()

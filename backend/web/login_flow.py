@@ -4,6 +4,7 @@ import hmac
 import os
 import secrets
 from datetime import timedelta
+from urllib.parse import quote, urlencode
 from fastapi import HTTPException
 from sqlalchemy import select, delete
 from backend.persistence.models import LoginChallenge, User
@@ -23,7 +24,15 @@ def start(db, response):
     db.add(LoginChallenge(id=identifier, browser_key=hashlib.sha256(browser_secret.encode()).hexdigest(), expires_at=now()+timedelta(minutes=5)))
     db.commit()
     response.set_cookie(COOKIE, identifier+'.'+browser_secret, max_age=300, httponly=True, secure=os.getenv('COOKIE_SECURE')=='true', samesite='lax')
-    return {'url': f'https://t.me/{username}?start=login_{identifier}', 'code': identifier[:6].upper(), 'expires_in': 300}
+    # Both web clients accept an encoded Telegram deep link in their fragment.
+    # All three links approve the same browser-bound challenge.
+    deep_link = 'tg://resolve?' + urlencode({'domain': username, 'start': f'login_{identifier}'})
+    return {
+        'url': f'https://t.me/{username}?start=login_{identifier}',
+        'web_a_url': 'https://web.telegram.org/a/#?tgaddr=' + quote(deep_link, safe=''),
+        'web_k_url': 'https://web.telegram.org/k/#?tgaddr=' + quote(deep_link, safe=''),
+        'code': identifier[:6].upper(), 'expires_in': 300,
+    }
 
 def browser_challenge(db, request):
     try:
