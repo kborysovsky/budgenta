@@ -41,6 +41,8 @@ Send `/start` or `/home` in a private chat. Telegram is a focused companion:
 
 Scheduled daily, weekly, and monthly reports still arrive in the chat. **Current state** is the only on-demand report in the bot. Management forms have been removed from Telegram, including unfinished forms from older versions. **Back** revisits the previous transaction step; **Home** or **Cancel** discards the unfinished transaction. Transaction state and update receipts persist across restarts and remain encrypted. Telegram update redelivery cannot duplicate financial writes. A reply can appear twice if Telegram accepted it just before the worker stopped, but the transaction remains recorded once.
 
+The bot keyboard can be dismissed using Telegram’s keyboard controls and reopened with the keyboard icon. Android’s system Back button controls the Telegram interface; use the bot’s **← Back** button to return to the previous transaction step. Hiding the keyboard does not cancel a transaction. After a keyboard-setting update, the next bot reply with menu buttons refreshes the keyboard; finish any draft and send `/home` to refresh the main menu. The bot sends `is_persistent=false`, following [Telegram’s keyboard settings](https://core.telegram.org/bots/api#replykeyboardmarkup).
+
 Run one bot worker. PostgreSQL enforces a worker lock. An active Telegram webhook prevents long polling; remove an old webhook before using this worker. The app does not silently remove existing webhooks. Telegram itself stores bot messages; database encryption does not make Telegram conversations end-to-end encrypted.
 
 ## Main currency and dashboard estimate

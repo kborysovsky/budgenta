@@ -37,7 +37,9 @@ def fields_for(state):
 
 
 def reply(text, buttons=None, inline=None, raw_rows=0):
-    result = {'text': text, 'reply_markup': {'keyboard': [[tr(button) if index >= raw_rows and button in CONTROL_BUTTONS else button for button in row] for index, row in enumerate(buttons or MENU)], 'resize_keyboard': True, 'is_persistent': True}}
+    # Let clients dismiss the keyboard with their native controls (Android Back).
+    # A persistent keyboard explicitly asks Telegram to keep it visible.
+    result = {'text': text, 'reply_markup': {'keyboard': [[tr(button) if index >= raw_rows and button in CONTROL_BUTTONS else button for button in row] for index, row in enumerate(buttons or MENU)], 'resize_keyboard': True, 'is_persistent': False}}
     if inline:
         result['reply_markup'] = {'inline_keyboard': inline}
     return result
