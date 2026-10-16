@@ -6,7 +6,7 @@ COPY frontend/ ./
 COPY locales/ /locales/
 RUN npm run build
 
-FROM python:3.12-slim AS backend-base
+FROM python:3.14-slim AS backend-base
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 WORKDIR /app
