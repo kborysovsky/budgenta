@@ -1,6 +1,6 @@
 from datetime import date as Date
 from decimal import Decimal
-from typing import Literal
+from typing import Annotated, Literal
 from pydantic import BaseModel, Field, model_validator, field_validator
 from backend.core.calendar import today
 
@@ -173,7 +173,8 @@ class BudgetLimitSettings(BaseModel):
     notifications_enabled: bool = True
 
 class BudgetLimitInput(BaseModel):
-    category: str = Field(min_length=1, max_length=60)
+    category: str | None = Field(default=None, min_length=1, max_length=60)
+    categories: list[Annotated[str, Field(min_length=1, max_length=60)]] | None = Field(default=None, min_length=1, max_length=50)
     amount: Decimal = Field(gt=0, max_digits=26, decimal_places=8)
     currency: Currency
     enabled: bool = True
@@ -182,7 +183,17 @@ class BudgetLimitInput(BaseModel):
     @field_validator('category')
     @classmethod
     def clean_category(cls, value):
-        return NewEntry.clean_category(value)
+        return NewEntry.clean_category(value) if value is not None else None
+
+    @model_validator(mode='after')
+    def category_selection(self):
+        names = self.categories if self.categories is not None else ([self.category] if self.category else [])
+        names = [NewEntry.clean_category(name) for name in names]
+        if not names or len({name.casefold() for name in names}) != len(names):
+            raise ValueError('Choose at least one category, without duplicates.')
+        self.categories = names
+        self.category = names[0]
+        return self
 
     @field_validator('expense_currencies')
     @classmethod

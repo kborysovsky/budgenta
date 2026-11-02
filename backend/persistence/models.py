@@ -146,6 +146,7 @@ class BudgetLimit(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
     category_key: Mapped[str] = mapped_column(String(64), unique=True)
     category: Mapped[str] = mapped_column(Encrypted())
+    categories: Mapped[str | None] = mapped_column(Encrypted(), nullable=True)
     amount: Mapped[Decimal] = mapped_column(Encrypted('decimal'))
     currency: Mapped[str] = mapped_column(Encrypted())
     expense_currencies: Mapped[str] = mapped_column(Encrypted(), default='null')

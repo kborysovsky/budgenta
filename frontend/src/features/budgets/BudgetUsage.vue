@@ -5,6 +5,7 @@ import AppIcon from '../../components/AppIcon.vue'
 const props = defineProps({ data: Object, editable: Boolean, showRates: { type: Boolean, default: true }, title: Boolean })
 defineEmits(['edit'])
 const money = (value, currency) => value == null ? '—' : `${new Intl.NumberFormat(numberLocale.value, { minimumFractionDigits: 2, maximumFractionDigits: ['BTC', 'ETH'].includes(currency) ? 8 : ['USDT', 'TRX'].includes(currency) ? 6 : 2 }).format(Number(value))} ${currency}`
+const budgetLabel = row => (row.categories || [row.category]).map(name => categoryLabel(name, 'expense')).join(' + ')
 const percentage = value => new Intl.NumberFormat(numberLocale.value, { maximumFractionDigits: 2 }).format(Number(value))
 const quotes = computed(() => [...new Map((props.data?.budgets || []).flatMap(b => b.stats?.quotes || []).map(q => [q.currency, q])).values()])
 </script>
@@ -17,21 +18,21 @@ const quotes = computed(() => [...new Map((props.data?.budgets || []).flatMap(b 
         <thead><tr><th>{{ t('Category') }}</th><th>{{ t('Budget') }}</th><th>{{ t('Spent') }}</th><th>{{ t('Remaining') }}</th><th>{{ t('Usage') }}</th><th v-if="editable" class="budget-actions"><span class="sr-only">{{ t('MANAGE') }}</span></th></tr></thead>
         <tbody>
           <tr v-for="row in data.budgets" :key="row.id" :class="{ 'budget-exceeded': row.stats?.exceeded, 'budget-disabled': !row.enabled }">
-            <th scope="row" class="budget-category"><span>{{ categoryLabel(row.category, 'expense') }}</span><small v-if="!row.enabled">{{ t('Disabled') }}</small><small v-if="row.native_spending?.length">{{ row.native_spending.map(n => money(n.amount, n.currency)).join(' + ') }}</small></th>
+            <th scope="row" class="budget-category"><span>{{ budgetLabel(row) }}</span><small v-if="!row.enabled">{{ t('Disabled') }}</small><small v-if="row.native_spending?.length">{{ row.native_spending.map(n => money(n.amount, n.currency)).join(' + ') }}</small></th>
             <td><span class="budget-mobile-label">{{ t('Budget') }}</span>{{ money(row.amount, row.currency) }}</td>
             <td><span class="budget-mobile-label">{{ t('Spent') }}</span>{{ money(row.stats?.spent, row.currency) }}</td>
             <td><span class="budget-mobile-label">{{ t('Remaining') }}</span>{{ money(row.stats?.remaining, row.currency) }}</td>
             <td class="budget-progress">
               <template v-if="row.stats?.complete">
                 <strong>{{ t('{percentage}% used', { percentage: percentage(row.stats.percentage) }) }}</strong>
-                <progress max="100" :value="Math.min(100, Math.max(0, Number(row.stats.percentage)))" :aria-label="t('Budget usage for {category}', { category: categoryLabel(row.category, 'expense') })" :aria-valuetext="t('{percentage}% used', { percentage: percentage(row.stats.percentage) })"></progress>
+                <progress max="100" :value="Math.min(100, Math.max(0, Number(row.stats.percentage)))" :aria-label="t('Budget usage for {category}', { category: budgetLabel(row) })" :aria-valuetext="t('{percentage}% used', { percentage: percentage(row.stats.percentage) })"></progress>
                 <span v-if="row.stats.exceeded" class="budget-status">{{ t('Over budget') }}</span><span v-else-if="Number(row.stats.remaining) === 0" class="budget-status">{{ t('Fully used') }}</span>
                 <small v-if="row.stats.stale" class="rate-warning">{{ t('Cached exchange rates used; estimate may be out of date.') }}</small>
               </template>
               <span v-else-if="row.stats" class="rate-warning">{{ t('Budget usage unavailable: missing rates for {currencies}.', { currencies: row.stats.missing.join(', ') }) }}</span>
               <span v-else class="muted">{{ t('Budget tracking is disabled.') }}</span>
             </td>
-            <td v-if="editable" class="budget-edit"><button class="settings-button" :aria-label="t('Edit budget for {category}', { category: categoryLabel(row.category, 'expense') })" @click="$emit('edit', row)"><AppIcon name="settings" /></button></td>
+            <td v-if="editable" class="budget-edit"><button class="settings-button" :aria-label="t('Edit budget for {category}', { category: budgetLabel(row) })" @click="$emit('edit', row)"><AppIcon name="settings" /></button></td>
           </tr>
         </tbody>
         <tfoot v-if="data.settings.enabled"><tr v-for="total in data.totals" :key="total.currency"><th scope="row">{{ t('Total') }} · {{ total.currency }}</th><td><span class="budget-mobile-label">{{ t('Budget') }}</span>{{ money(total.limit, total.currency) }}</td><td><span class="budget-mobile-label">{{ t('Spent') }}</span>{{ money(total.spent, total.currency) }}</td><td><span class="budget-mobile-label">{{ t('Remaining') }}</span>{{ money(total.remaining, total.currency) }}</td><td :colspan="editable ? 2 : 1" class="muted">{{ t('Enabled budgets only') }}<small v-if="!total.complete">{{ t('Estimate temporarily unavailable') }}</small></td></tr></tfoot>

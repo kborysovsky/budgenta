@@ -43,8 +43,16 @@ def definitions(db, user_id):
     return db.scalars(select(BudgetLimit).where(BudgetLimit.user_id == user_id, BudgetLimit.deleted == False).order_by(BudgetLimit.id)).all()
 
 
+def record_categories(record):
+    return json.loads(record.categories) if record.categories is not None else [record.category]
+
+
+def label(row):
+    return ' + '.join(category_label(name, 'expense') for name in row.get('categories', [row['category']]))
+
+
 def serialize(record):
-    return dict(id=record.id, category=record.category, amount=str(record.amount), currency=record.currency,
+    return dict(id=record.id, category=record.category, categories=record_categories(record), amount=str(record.amount), currency=record.currency,
                 enabled=bool(record.enabled), expense_currencies=json.loads(record.expense_currencies))
 
 
@@ -89,18 +97,21 @@ def save_settings(db, user_id, data):
 def save(db, user_id, data, identifier=None):
     budget.lock_user(db, user_id)
     budget.validate_amount(data.currency, data.amount)
-    name = categories.resolve(db, user_id, 'expense', data.category)
-    key = identity_key(f'budget-category:{user_id}:{category_key(name)}')
-    duplicate = db.scalar(select(BudgetLimit).where(BudgetLimit.category_key == key))
-    if duplicate and duplicate.id != identifier:
-        raise budget.BudgetError('This category already has a budget. Edit its existing limit.')
     record = owned(db, user_id, identifier) if identifier is not None else BudgetLimit(user_id=user_id)
-    changed = identifier is not None and (record.category_key != key or record.amount != data.amount or record.currency != data.currency
+    names = [categories.resolve(db, user_id, 'expense', name) for name in data.categories]
+    selected = {category_key(name) for name in names}
+    for existing in definitions(db, user_id):
+        if existing.id != identifier and selected.intersection(category_key(name) for name in record_categories(existing)):
+            raise budget.BudgetError('A selected category already belongs to another budget. Remove it from that budget first.')
+    # Preserve the legacy single-category key; group identity ignores selection order.
+    key = identity_key(f'budget-category:{user_id}:{category_key(names[0])}') if len(names) == 1 else identity_key(
+        f'budget-categories:{user_id}:' + json.dumps(sorted(selected)))
+    category_changed = identifier is not None and selected != {category_key(name) for name in record_categories(record)}
+    changed = identifier is not None and (category_changed or record.amount != data.amount or record.currency != data.currency
                                         or set(json.loads(record.expense_currencies) or []) != set(data.expense_currencies or []))
-    category_changed = identifier is not None and record.category_key != key
     if identifier is not None and (changed or not data.enabled):
         cancel_pending(db, user_id, identifier)
-    record.category_key, record.category = key, name
+    record.category_key, record.category, record.categories = key, names[0], json.dumps(names)
     record.amount, record.currency = data.amount, data.currency
     record.enabled, record.expense_currencies = int(data.enabled), json.dumps(data.expense_currencies)
     db.add(record)
@@ -173,8 +184,11 @@ def snapshot(db, user_id, month, *, config=None, quote_fn=None, include_disabled
             expenses[category_key(entry.category)][account.currency] -= entry.amount
         needed = set()
         for row in rows:
-            native = {currency: amount for currency, amount in expenses[category_key(row['category'])].items()
-                      if amount and (row['expense_currencies'] is None or currency in row['expense_currencies'])}
+            native = defaultdict(Decimal)
+            for name in row['categories']:
+                for currency, amount in expenses[category_key(name)].items():
+                    if amount and (row['expense_currencies'] is None or currency in row['expense_currencies']):
+                        native[currency] += amount
             row['native_spending'] = [{'currency': c, 'amount': str(a)} for c, a in sorted(native.items())]
             if any(currency != row['currency'] for currency in native):
                 needed.update(native)
@@ -230,7 +244,7 @@ def lines(result):
     output = [tr('Budget Limits · {month}', month=result['month'])]
     for row in result['budgets']:
         stats, currency = row['stats'], row['currency']
-        output.append(category_label(row['category'], 'expense'))
+        output.append(label(row))
         if not stats['complete']:
             output.append(tr('Budget usage unavailable: missing rates for {currencies}.', currencies=', '.join(stats['missing'])))
             continue
@@ -248,7 +262,7 @@ def lines(result):
 
 def notification_text(row, month, threshold):
     stats, currency = row['stats'], row['currency']
-    values = dict(category=category_label(row['category'], 'expense'), amount=amount_text(stats['remaining'], currency), limit=amount_text(row['amount'], currency))
+    values = dict(category=label(row), amount=amount_text(stats['remaining'], currency), limit=amount_text(row['amount'], currency))
     if threshold == 0:
         text = tr('{category} budget: fully used — {percentage}% used; remaining {amount} from {limit}.', percentage=stats['percentage'], **values)
         if stats['exceeded']:

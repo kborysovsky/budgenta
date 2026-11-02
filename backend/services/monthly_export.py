@@ -126,7 +126,7 @@ def monthly_tables(db, user_id, month, *, quote_fn=None):
             for row in snapshot['budgets']:
                 for q in row['stats']['quotes']: quotes[q['currency']] = q
             tables.append(table('Budget Limits', ['Category', 'Currency', 'Budget', 'Spent', 'Remaining', 'Usage (%)', 'Status'],
-                [[category_label(b['category'], 'expense'), b['currency'], Decimal(b['amount']),
+                [[budget_limits.label(b), b['currency'], Decimal(b['amount']),
                   Decimal(b['stats']['spent']) if b['stats']['spent'] is not None else None,
                   Decimal(b['stats']['remaining']) if b['stats']['remaining'] is not None else None,
                   Decimal(b['stats']['percentage']) if b['stats']['percentage'] is not None else None,

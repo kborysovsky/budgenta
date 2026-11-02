@@ -8,7 +8,7 @@ const props = defineProps({ month: String, api: Function, currencies: Array, cat
 const emit = defineEmits(['changed'])
 const data = ref(null), settings = ref({ enabled: false, notifications_enabled: true }), busy = ref(false), loading = ref(false), error = ref(''), editing = ref(false), form = ref({}), editor = ref(null)
 let request = 0
-const choices = computed(() => [...new Set([...(props.categories || []), ...(data.value?.budgets || []).map(b => b.category)])])
+const choices = computed(() => [...new Set([...(props.categories || []), ...(data.value?.budgets || []).flatMap(b => b.categories || [b.category])])])
 async function load() {
   const current = ++request; loading.value = true
   try { const result = await props.api(`/budget-limits?month=${props.month}`); if (current === request) { data.value = result; settings.value = { ...result.settings } } }
@@ -23,13 +23,15 @@ async function run(task) {
 }
 function open(row) {
   error.value = ''; editing.value = true
-  form.value = row ? { ...row, all_currencies: row.expense_currencies === null, expense_currencies: [...(row.expense_currencies || [])] } : { id: null, category: '', amount: '', currency: 'USD', enabled: true, all_currencies: true, expense_currencies: [] }
+  form.value = row ? { ...row, categories: [...(row.categories || [row.category])], all_currencies: row.expense_currencies === null, expense_currencies: [...(row.expense_currencies || [])] } : { id: null, categories: [''], amount: '', currency: 'USD', enabled: true, all_currencies: true, expense_currencies: [] }
   nextTick(() => { editor.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }); editor.value?.querySelector('input')?.focus({ preventScroll: true }) })
 }
 async function save() {
   await run(async () => {
     if (!form.value.all_currencies && !form.value.expense_currencies.length) throw new Error('Choose at least one currency, without duplicates.')
-    const payload = { category: form.value.category, amount: form.value.amount, currency: form.value.currency, enabled: form.value.enabled, expense_currencies: form.value.all_currencies ? null : form.value.expense_currencies }
+    const names = form.value.categories.map(name => name.trim().replace(/\s+/g, ' '))
+    if (names.some(name => !name) || new Set(names.map(name => name.toLocaleLowerCase())).size !== names.length) throw new Error('Choose at least one category, without duplicates.')
+    const payload = { categories: names, amount: form.value.amount, currency: form.value.currency, enabled: form.value.enabled, expense_currencies: form.value.all_currencies ? null : form.value.expense_currencies }
     await props.api(form.value.id ? `/budget-limits/${form.value.id}/edit` : '/budget-limits', payload)
     editing.value = false
   })
@@ -57,7 +59,13 @@ async function reset() {
       <form v-if="editing" ref="editor" class="savings-form budget-editor" @submit.prevent="save">
         <h3>{{ t(form.id ? 'Edit budget' : 'Add budget') }}</h3>
         <fieldset :disabled="busy || loading">
-          <label>{{ t('Category') }}<SearchSelect v-model="form.category" :options="choices" :option-label="name => categoryLabel(name, 'expense')" :label="t('Budget category')" :placeholder="t('Choose a category or type your own purpose.')" allow-custom required :maxlength="60" /></label>
+          <p>{{ t('Categories sharing this limit') }}</p>
+          <div v-for="(_, index) in form.categories" :key="index" class="budget-category-choice">
+            <label>{{ t('Category') }} {{ index + 1 }}<SearchSelect v-model="form.categories[index]" :options="choices" :option-label="name => categoryLabel(name, 'expense')" :label="t('Budget category') + ' ' + (index + 1)" :placeholder="t('Choose a category or type your own purpose.')" allow-custom required :maxlength="60" /></label>
+            <button v-if="form.categories.length > 1" type="button" class="secondary" @click="form.categories.splice(index, 1)">{{ t('Remove category') }}</button>
+          </div>
+          <button type="button" class="secondary" :disabled="form.categories.length >= 50" @click="form.categories.push('')">{{ t('Add category') }}</button>
+          <p class="muted">{{ t('Selected categories share one monthly allowance. A category can belong to only one budget.') }}</p>
           <div class="form-row"><label>{{ t('Monthly limit') }}<input :aria-label="t('Monthly limit')" type="number" min="0.00000001" step="any" :value="form.amount" @input="form.amount = $event.target.value" placeholder="0.00" required></label><label>{{ t('Budget currency') }}<SearchSelect v-model="form.currency" :options="currencies" :label="t('Budget currency')" required /></label></div>
           <label class="check-label"><input type="checkbox" v-model="form.enabled">{{ t('Enable this budget') }}</label>
           <label class="check-label"><input type="checkbox" v-model="form.all_currencies">{{ t('Count expenses in all currencies') }}</label>
@@ -77,6 +85,9 @@ async function reset() {
   </section>
 </template>
 <style scoped>
+.budget-category-choice { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.budget-category-choice label { flex: 1 1 200px; min-width: 0; margin: 0; }
+.budget-category-choice button { margin-bottom: 0; min-height: 44px; }
 .budget-settings { margin-top: 20px; }
 .budget-settings fieldset { margin: 0 0 16px; }
 .budget-heading { margin-top: 28px; gap: 16px; flex-wrap: wrap; }

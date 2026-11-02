@@ -209,7 +209,7 @@ def test_month_rollover_uses_user_timezone_and_cancels_old_queue(db):
 
 def test_ownership_duplicates_removal_and_encryption(db):
     enable(db); rule = create(db, category='Private category')
-    with pytest.raises(budget.BudgetError, match='already has'):
+    with pytest.raises(budget.BudgetError, match='already belongs'):
         create(db, category=' private CATEGORY ')
     db.rollback()
     for fn in [lambda: limits.remove(db, 2, rule['id']), lambda: limits.reset_alerts(db, 2, rule['id']),
@@ -398,6 +398,10 @@ def test_budget_http_auth_validation_ownership_and_management(telegram_login):
             result = client.get('/api/budget-limits?month=2024-01').json()
             assert result['settings']['enabled'] and result['budgets'][0]['stats']['percentage'] == '0.00'
             assert client.post(f'/api/budget-limits/{identifier}/edit', headers=headers, json={**payload, 'amount': '200'}).json()['amount'] == '200'
+            combined = {k: v for k, v in payload.items() if k != 'category'} | {'categories': ['Grocery', 'Delivery']}
+            edited = client.post(f'/api/budget-limits/{identifier}/edit', headers=headers, json=combined)
+            assert edited.status_code == 200 and edited.json()['categories'] == ['Grocery', 'Delivery']
+            assert client.get('/api/budget-limits').json()['budgets'][0]['categories'] == ['Grocery', 'Delivery']
             telegram_login(client, telegram_id=222)
             assert client.get('/api/budget-limits').json()['budgets'] == []
             for action, body in [('edit', payload), ('delete', {}), ('reset-alerts', {})]:

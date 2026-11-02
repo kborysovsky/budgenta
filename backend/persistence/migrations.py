@@ -4,7 +4,7 @@ from backend.persistence.database import Base
 from backend.persistence import models   # register tables
 from backend.core.encryption import Encrypted, PREFIX, cipher, encrypt, decrypt, identity_key
 
-VERSION = 8
+VERSION = 9
 KEY_CHECK_PREFIX = 'budgenta-encryption-check:'
 # Compatibility only: deployed schemas through v6 used the original name.
 LEGACY_KEY_CHECK_PREFIX = 'pocket-encryption-check:'
@@ -146,6 +146,10 @@ def upgrade_management(conn):
 
 
 def upgrade_budget_limits(conn):
+    # NULL preserves the existing single-category limit without rewriting data.
+    budget_columns = {c['name'] for c in inspect(conn).get_columns('budget_limits')}
+    if 'categories' not in budget_columns:
+        conn.execute(text('ALTER TABLE budget_limits ADD COLUMN categories TEXT'))
     columns = {c['name'] for c in inspect(conn).get_columns('notifications')}
     for name, definition in {'budget_id': 'INTEGER REFERENCES budget_limits(id)', 'budget_context': 'TEXT'}.items():
         if name not in columns:
