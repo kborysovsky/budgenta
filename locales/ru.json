@@ -602,6 +602,7 @@
   "Total": "Итого",
   "Total expenses:": "Всего расходов:",
   "Total saved so far": "Всего накоплено",
+  "Total spending (USD, estimated)": "Всего расходов (USD, оценка)",
   "Total spending unavailable in USD · {start} to {end}. Missing rates: {currencies}.": "Общая сумма расходов в USD недоступна · с {start} по {end}. Нет курсов: {currencies}.",
   "Total spending: {amount} USD (estimated) · {start} to {end}": "Всего расходов: {amount} USD (оценка) · с {start} по {end}",
   "Transaction ID": "ID транзакции",

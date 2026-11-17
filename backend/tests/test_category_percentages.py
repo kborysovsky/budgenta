@@ -127,12 +127,13 @@ def test_stale_rate_warning_and_tiny_crypto_share_before_rounding(db):
     assert 'cached exchange rates' in '\n'.join(reporting.category_lines(report))
 
 
-def test_disabled_breakdown_does_not_fetch_rates_and_legacy_report_agrees(db):
+def test_disabled_breakdown_keeps_spending_total_and_legacy_report_agrees(db):
     usd=wallet(db,'Cash');eur=wallet(db,'Euros','EUR')
     spend(db,usd,'Grocery','10');spend(db,eur,'Grocery','5')
     prefs=ReportPreferences();prefs.monthly.include_categories=False;reporting.save_preferences(db,1,prefs)
-    def forbidden(currency): raise AssertionError('Categories disabled; should not fetch rates')
-    report=reporting.monthly_report(db,1,'2024-01',quote_fn=forbidden)
+    report=reporting.monthly_report(db,1,'2024-01',quote_fn=quote)
+    assert report['spending_valuation']['complete']
+    assert Decimal(report['spending_valuation']['total_usd']) > 10
     assert report['category_totals']==[]
     legacy=budget.expense_report(db,1,'2024-01',quote_fn=quote)
     assert legacy['category_totals'][0]['percentage']=='100.00'

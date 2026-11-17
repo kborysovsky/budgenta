@@ -78,6 +78,13 @@ async function download(format) {
     </form>
     <div class="monthly-report-heading"><h2>{{ $t("Monthly report") }} · {{ report.month }}</h2><div class="export-actions"><button type="button" class="secondary" :disabled="exporting || !report.month" @click="download('csv')">{{ $t('Download CSV') }}</button><button type="button" class="secondary" :disabled="exporting || !report.month" @click="download('xlsx')">{{ $t('Excel with chart') }}</button></div></div>
     <p v-if="exporting" class="muted" role="status">{{ $t('Preparing monthly report…') }}</p><p v-if="exportError" class="error" role="alert">{{ $error(exportError) }}</p>
+    <article v-if="report.spending_valuation" class="planning-card spending-total">
+      <h3>{{ $t('Total spending (USD, estimated)') }}</h3>
+      <strong v-if="report.spending_valuation.complete">{{ Number(report.spending_valuation.total_usd).toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} USD</strong>
+      <p v-else class="rate-warning">{{ $t('Total spending unavailable in USD · {start} to {end}. Missing rates: {currencies}.', { start: report.start, end: report.end, currencies: report.spending_valuation.missing.join(', ') }) }}</p>
+      <p v-if="report.spending_valuation.stale" class="rate-warning">{{ $t('Spending uses cached exchange rates; estimate may be out of date.') }}</p>
+      <p class="muted">{{ report.start }} – {{ report.end }}</p>
+    </article>
     <p class="muted">{{ $t('Detailed downloads include transactions, currency totals, daily activity, account activity, and enabled category and budget summaries. Corrections, opening balances, and deleted transactions are excluded.') }}</p>
     <p class="muted">{{ $t('Enable monthly category details to include the spending chart. CSV contains tables; Excel also embeds the chart.') }}</p>
     <p class="muted">{{ $t("Uses the saved monthly account, currency, savings, and category filters. Percentages show each category’s share of total expenses across all included currencies, converted to USD at current rates. Categories combine spending in different currencies. Rounding may make the total differ slightly from 100%.") }}</p>
@@ -98,6 +105,7 @@ async function download(format) {
 </template>
 
 <style scoped>
+.spending-total { margin-bottom: 20px; }
 .category-summary { margin-top: 20px; }
 .category-native-amount { display: block; }
 .category-summary details { margin-top: 16px; }

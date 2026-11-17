@@ -602,6 +602,7 @@
   "Total": "Разом",
   "Total expenses:": "Усього витрат:",
   "Total saved so far": "Усього накопичено",
+  "Total spending (USD, estimated)": "Загальні витрати (USD, оцінка)",
   "Total spending unavailable in USD · {start} to {end}. Missing rates: {currencies}.": "Загальна сума витрат у USD недоступна · з {start} до {end}. Немає курсів: {currencies}.",
   "Total spending: {amount} USD (estimated) · {start} to {end}": "Усього витрат: {amount} USD (оцінка) · з {start} до {end}",
   "Transaction ID": "ID транзакції",

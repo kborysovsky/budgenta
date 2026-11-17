@@ -109,9 +109,12 @@ def monthly_tables(db, user_id, month, *, quote_fn=None):
         [tr('Notes'), tr('Excel preserves values exceeding 15 significant digits as text; CSV retains exact decimal values.')],
         [tr('Notes'), tr('Text beginning with spreadsheet formula characters is escaped for safe CSV opening.')],
     ]
-    if breakdown['expense_valuation']['stale'] or (target and target['stale']):
+    spending = reporting.spending_valuation(flow_totals(flows), quote_fn=quote_fn)
+    metadata.insert(6, [tr('Total spending (USD, estimated)'), Decimal(spending['total_usd']) if spending['complete'] else None])
+    quotes.update({q['currency']: q for q in spending['quotes']})
+    if spending['stale'] or breakdown['expense_valuation']['stale'] or (target and target['stale']):
         metadata.append([tr('Warning'), tr('Cached exchange rates used; estimate may be out of date.')])
-    missing = breakdown['expense_valuation']['missing'] + ([main] if config['include_categories'] and categories and any(c != main for c, _ in categories) and target is None else [])
+    missing = spending['missing'] + breakdown['expense_valuation']['missing'] + ([main] if config['include_categories'] and categories and any(c != main for c, _ in categories) and target is None else [])
     if missing: metadata.append([tr('Missing exchange rates'), ', '.join(sorted(set(missing)))])
     headers = ['Currency', 'Income', 'Expenses', 'Income less expenses', 'Transferred out', 'Received from transfers']
     tables = [table('Report information', ['Field', 'Value'], metadata),

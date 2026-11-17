@@ -11,6 +11,7 @@
 *.db
 backups/
 artifacts/
+agents.md
 backend/tests/
 .codex/
 .agents/

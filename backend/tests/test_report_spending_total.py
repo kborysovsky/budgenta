@@ -67,3 +67,53 @@ def test_spending_missing_or_stale_rate_even_when_spent_account_is_empty(db):
 def test_spending_translations(db,language,expected):
     reporting.save_language(db,1,language)
     assert reporting.report_message(db,1,'monthly',now=NOW,quote_fn=quote).splitlines()[2].startswith(expected+' 0.00 USD')
+
+
+@pytest.mark.parametrize('details', [True, False])
+def test_current_state_spending_month_to_date_and_filters(db, details):
+    now=datetime(2024,2,1,1,tzinfo=timezone.utc)  # Still January 31 in Buenos Aires.
+    cash=account(db,opening='1000');eur=account(db,currency='EUR',opening='1000')
+    saved=account(db,kind='savings',opening='1000');foreign=account(db,user=2,opening='1000')
+    spend(db,cash,'10',date(2024,1,1));spend(db,eur,'5',date(2024,1,31))
+    spend(db,cash,'99',date(2023,12,31));spend(db,cash,'99',date(2024,2,1))
+    spend(db,saved,'200',date(2024,1,31));spend(db,foreign,'300',date(2024,1,31),uid=2)
+    mistaken=spend(db,cash,'50',date(2024,1,31));budget.delete_transaction(db,1,mistaken)
+    prefs=ReportPreferences(main_currency='EUR');config=prefs.current_state
+    config.include_monthly_summary=details;config.include_categories=details;config.include_rates=details
+    config.include_savings=False
+    reporting.save_preferences(db,1,prefs)
+    lines=reporting.current_state(db,1,now=now,quote_fn=quote).splitlines()
+    assert lines[1].startswith('Estimated balance:') and 'EUR' in lines[1]
+    assert lines[2]=='Total spending: 20.00 USD (estimated) · 2024-01-01 to 2024-01-31'
+    assert ('This month so far' in lines)==details
+    prefs.current_state.excluded_currencies=['EUR'];reporting.save_preferences(db,1,prefs)
+    assert 'Total spending: 10.00 USD' in reporting.current_state(db,1,now=now,quote_fn=quote)
+    prefs.current_state.account_ids=[];reporting.save_preferences(db,1,prefs)
+    assert 'Total spending: 0.00 USD' in reporting.current_state(db,1,now=now,quote_fn=quote)
+
+
+def test_current_state_missing_and_stale_spending_rates(db):
+    wallet=account(db,currency='EUR',opening='10')
+    spend(db,wallet,'10',date(2024,1,31))  # Zero remaining balance still needs an expense quote.
+    now=datetime(2024,1,31,18,tzinfo=timezone.utc)
+    message=reporting.current_state(db,1,now=now,quote_fn=lambda c: None if c=='EUR' else quote(c))
+    assert 'Total spending unavailable in USD' in message and 'Missing rates: EUR.' in message
+    message=reporting.current_state(db,1,now=now,quote_fn=lambda c: {**quote(c),'stale':True})
+    assert 'Total spending: 20.00 USD' in message and 'Spending uses cached exchange rates' in message
+
+
+def test_monthly_api_and_exports_total_independent_of_category_details(db):
+    from backend.services import monthly_export
+    cash=account(db,opening='1000');eur=account(db,currency='EUR',opening='1000')
+    spend(db,cash,'10',date(2024,1,31));spend(db,eur,'5',date(2024,1,31))
+    prefs=ReportPreferences();prefs.monthly.include_categories=False;prefs.monthly.include_rates=False
+    reporting.save_preferences(db,1,prefs)
+    report=reporting.monthly_report(db,1,'2024-01',quote_fn=quote)
+    assert not report['category_totals'] and report['spending_valuation']['total_usd']=='20.00'
+    tables=monthly_export.monthly_tables(db,1,'2024-01',quote_fn=quote)
+    info=next(t for t in tables if t['name']=='Report information')
+    assert dict(info['rows'])['Total spending (USD, estimated)']==20
+    assert not any(t['name']=='Spending by category' for t in tables)
+    missing=monthly_export.monthly_tables(db,1,'2024-01',quote_fn=lambda c: None if c=='EUR' else quote(c))
+    info=dict(next(t['rows'] for t in missing if t['name']=='Report information'))
+    assert info['Total spending (USD, estimated)'] is None and info['Missing exchange rates']=='EUR'

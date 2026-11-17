@@ -602,6 +602,7 @@
   "Total": "Total",
   "Total expenses:": "Gastos totales:",
   "Total saved so far": "Total ahorrado",
+  "Total spending (USD, estimated)": "Gasto total (USD, estimado)",
   "Total spending unavailable in USD · {start} to {end}. Missing rates: {currencies}.": "Gasto total en USD no disponible · del {start} al {end}. Faltan tipos de cambio: {currencies}.",
   "Total spending: {amount} USD (estimated) · {start} to {end}": "Gasto total: {amount} USD (estimado) · del {start} al {end}",
   "Transaction ID": "ID de transacción",

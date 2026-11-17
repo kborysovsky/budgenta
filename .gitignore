@@ -10,6 +10,7 @@ node_modules/
 frontend/dist/
 backups/
 artifacts/
+agents.md
 
 # Local tooling and credentials
 .codex/

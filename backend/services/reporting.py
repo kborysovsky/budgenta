@@ -111,6 +111,7 @@ def dashboard(db, user_id, month):
 
 
 def period_report(db, user_id, start, end, config, *, quote_fn=None):
+    quote_fn = cache(quote_fn or rates.quote)
     selected = selected_accounts(db, user_id, config, include_archived=True)
     ids = {a['id'] for a in selected}
     rows = db.scalars(select(Entry).where(Entry.account_id.in_(ids), Entry.deleted == False)).all()
@@ -123,8 +124,9 @@ def period_report(db, user_id, start, end, config, *, quote_fn=None):
         flows.append((currency, entry.kind, entry.amount))
         if entry.kind == 'expense':
             categories[(currency, entry.category)] -= entry.amount
+    totals = flow_totals(flows)
     return {'start':start.isoformat(), 'end':end.isoformat(), 'accounts':selected_accounts(db,user_id,config),
-            'totals':flow_totals(flows),
+            'totals':totals, 'spending_valuation': spending_valuation(totals, quote_fn=quote_fn),
             **expense_breakdown.summarize(categories if config.get('include_categories', False) else {}, quote_fn=quote_fn)}
 
 
@@ -142,10 +144,15 @@ def category_lines(report):
     return expense_breakdown.lines(report)
 
 
+def spending_valuation(totals, *, quote_fn=None):
+    """Value only expenses, independently of category/rate visibility."""
+    return rates.valuation([{'currency': row['currency'], 'balance': row['expenses']}
+                            for row in totals], quote_fn=quote_fn)
+
+
 def spending_lines(report, *, quote_fn=None):
     """Total period expenses in USD, independently of category/rate visibility."""
-    spending = rates.valuation([{'currency': row['currency'], 'balance': row['expenses']}
-                                for row in report['totals']], quote_fn=quote_fn)
+    spending = report.get('spending_valuation') or spending_valuation(report['totals'], quote_fn=quote_fn)
     period = {'start': report['start'], 'end': report['end']}
     if not spending['complete']:
         return [tr('Total spending unavailable in USD · {start} to {end}. Missing rates: {currencies}.',
@@ -239,11 +246,12 @@ def current_state(db, user_id, now=None, quote_fn=None):
     now = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo(prefs['timezone']))
     accounts = selected_accounts(db,user_id,config)
     result = rates.balance_valuation(accounts,prefs['main_currency'],quote_fn=quote_fn)
+    monthly = period_report(db,user_id,now.date().replace(day=1),now.date(),config,quote_fn=quote_fn)
+    balance_lines = rates.current_balance_message(result, include_rates=config['include_rates']).split('\n')
     lines = [f"{tr('Current state')} · {now:%Y-%m-%d %H:%M} ({prefs['timezone']})",
-             rates.current_balance_message(result, include_rates=config['include_rates']),
+             balance_lines[0], *spending_lines(monthly, quote_fn=quote_fn), *balance_lines[1:],
              tr('Savings included in balance.' if config['include_savings'] else 'Savings excluded from balance.')]
     if config['include_monthly_summary']:
-        monthly = period_report(db,user_id,now.date().replace(day=1),now.date(),config,quote_fn=quote_fn)
         lines += [tr('This month so far')] + (flow_lines(monthly['totals']) or [tr('No income, expenses, or transfers recorded this month.')])
         if config['include_categories']: lines += category_lines(monthly)
     if config['include_debts']:
